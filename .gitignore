@@ -4,3 +4,17 @@
 /temp
 .env
 .htaccess
+
+# NPM and build configs (containing secrets)
+.npmrc
+.npmrc.build
+
+# Editor directories and files
+.vscode/
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
