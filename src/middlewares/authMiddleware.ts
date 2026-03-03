@@ -14,13 +14,7 @@ interface UserPayload {
   isVerified: string;
 }
 
-declare global {
-  namespace Express {
-    interface Request {
-      currentUser?: UserPayload;
-    }
-  }
-}
+// Auth middleware
 
 const requireAuth = (
   req: Request,

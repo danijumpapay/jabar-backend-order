@@ -3,21 +3,36 @@
 export interface CreateOrderRequest {
     name: string;
     email: string;
-    whatsapp: string;
-    nik: string;
+    phoneNumber: string;
+    identityNumber: string;
     plateNumber: string;
-    no_rangka: string;
-    serviceId: string;
+    chassisNumber: string;
+    serviceId: string | number;
     deliveryFee: number;
-    finalTotal: number;
+    totalAmount: number;
     address?: string;
     city?: string;
     addressNote?: string;
     paymentMethod: string;
     voucherCode?: string;
     promoId?: string;
-    jenisKendaraan?: string;
-    jenisMutasi?: string;
+    vehicleType?: string;
+    mutationType?: string;
+    latitude?: number;
+    longitude?: number;
+    taxData?: {
+        PKB_POKOK: string;
+        PKB_DENDA: string;
+        SWD_POKOK: string;
+        SWD_DENDA: string;
+        ADM_STNK: string;
+        ADM_TNKB: string;
+        OPSEN_POKOK: string;
+        OPSEN_DENDA: string;
+        JUMLAH_BAYAR: string;
+        TGL_AKHIR_PAJAK: string;
+        TGL_AKHIR_STNKB: string;
+    };
 }
 
 export interface OrderStatusStep {
@@ -30,11 +45,11 @@ export interface OrderDetailResponse {
     bookingId: string;
     status: string;
     orderStatusId: number;
-    nama: string;
+    name: string;
     email: string;
-    layanan: string;
-    harga: string;
-    tanggal: string;
+    serviceName: string;
+    totalAmount: string; // Formatted price
+    orderDate: string;
     steps: OrderStatusStep[];
 }
 
@@ -65,10 +80,10 @@ export interface VoucherValidateResponse {
 // ─── Refund ───────────────────────────────────────────────────────────────────
 
 export interface RefundRequest {
-    nominalAktual: number;
+    actualAmount: number;
     bank: string;
-    rekening: string;
-    catatan?: string;
+    accountNumber: string;
+    notes?: string;
 }
 
 // ─── File Upload ──────────────────────────────────────────────────────────────

@@ -2,7 +2,7 @@
     "info": {
         "name": "Jabar Backend Order API",
         "_postman_id": "jabar-backend-order-v1",
-        "description": "REST API untuk order management jabar-backend-order. Base URL: http://localhost:3001",
+        "description": "REST API for jabar-backend-order management. Base URL: http://localhost:3001",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "variable": [
@@ -15,13 +15,13 @@
             "key": "order_id",
             "value": "",
             "type": "string",
-            "description": "UUID orderId dari response POST /orders"
+            "description": "UUID orderId from POST /orders response"
         },
         {
             "key": "booking_id",
             "value": "",
             "type": "string",
-            "description": "bookingId dari response POST /orders (format: KPyyyyMMddXXXX)"
+            "description": "bookingId from POST /orders response (e.g. KPyyyyMMddXXXX)"
         }
     ],
     "item": [
@@ -39,14 +39,14 @@
                         ""
                     ]
                 },
-                "description": "Cek apakah server berjalan"
+                "description": "Check if the server is running"
             }
         },
         {
             "name": "Vehicle",
             "item": [
                 {
-                    "name": "Cek Info Kendaraan",
+                    "name": "Check Vehicle Info",
                     "request": {
                         "method": "POST",
                         "header": [
@@ -76,7 +76,7 @@
                                 "check"
                             ]
                         },
-                        "description": "Proxy ke Sambara untuk cek data pajak kendaraan berdasarkan plat nomor"
+                        "description": "Proxy to Sambara API to check vehicle tax info"
                     }
                 }
             ]
@@ -85,7 +85,7 @@
             "name": "Vouchers",
             "item": [
                 {
-                    "name": "Validasi Voucher",
+                    "name": "Validate Voucher",
                     "request": {
                         "method": "POST",
                         "header": [
@@ -115,7 +115,7 @@
                                 "validate"
                             ]
                         },
-                        "description": "Validasi kode voucher. Coba juga: ONGKIRGRATIS"
+                        "description": "Check if a voucher code is valid"
                     }
                 }
             ]
@@ -124,7 +124,7 @@
             "name": "Services",
             "item": [
                 {
-                    "name": "Daftar Layanan",
+                    "name": "List Available Services",
                     "request": {
                         "method": "GET",
                         "header": [],
@@ -138,8 +138,7 @@
                                 "v1",
                                 "services"
                             ]
-                        },
-                        "description": "Ambil semua layanan aktif untuk ditampilkan di halaman Home"
+                        }
                     }
                 }
             ]
@@ -148,7 +147,7 @@
             "name": "Promos",
             "item": [
                 {
-                    "name": "Daftar Promo",
+                    "name": "List Active Promos",
                     "request": {
                         "method": "GET",
                         "header": [],
@@ -162,8 +161,7 @@
                                 "v1",
                                 "promos"
                             ]
-                        },
-                        "description": "Ambil semua promo aktif untuk slider di halaman Home"
+                        }
                     }
                 }
             ]
@@ -172,7 +170,7 @@
             "name": "Orders",
             "item": [
                 {
-                    "name": "Buat Order",
+                    "name": "Create New Order",
                     "event": [
                         {
                             "listen": "test",
@@ -182,8 +180,6 @@
                                     "if (json.success && json.results) {",
                                     "  pm.collectionVariables.set('order_id', json.results.orderId);",
                                     "  pm.collectionVariables.set('booking_id', json.results.bookingId);",
-                                    "  console.log('orderId:', json.results.orderId);",
-                                    "  console.log('bookingId:', json.results.bookingId);",
                                     "}"
                                 ],
                                 "type": "text/javascript"
@@ -200,7 +196,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"name\": \"Budi Santoso\",\n  \"email\": \"budi@email.com\",\n  \"whatsapp\": \"081234567890\",\n  \"nik\": \"3201234567890001\",\n  \"plateNumber\": \"D1234ABC\",\n  \"no_rangka\": \"MHFXX123456789\",\n  \"serviceId\": \"1\",\n  \"deliveryFee\": 50000,\n  \"finalTotal\": 350000,\n  \"address\": \"Jl. Sudirman No.1, Bandung\",\n  \"city\": \"Bandung\",\n  \"paymentMethod\": \"BRI\",\n  \"voucherCode\": \"\"\n}",
+                            "raw": "{\n  \"name\": \"Budi Santoso\",\n  \"email\": \"budi@email.com\",\n  \"phoneNumber\": \"081234567890\",\n  \"identityNumber\": \"3201234567890001\",\n  \"plateNumber\": \"D1234ABC\",\n  \"chassisNumber\": \"MHFXX123456789\",\n  \"serviceId\": \"1\",\n  \"deliveryFee\": 50000,\n  \"totalAmount\": 350000,\n  \"address\": \"Jl. Sudirman No.1, Bandung\",\n  \"city\": \"Bandung\",\n  \"paymentMethod\": \"BRI\",\n  \"voucherCode\": \"\"\n}",
                             "options": {
                                 "raw": {
                                     "language": "json"
@@ -217,12 +213,11 @@
                                 "v1",
                                 "orders"
                             ]
-                        },
-                        "description": "Buat order baru. orderId & bookingId otomatis tersimpan ke Collection Variable setelah request sukses."
+                        }
                     }
                 },
                 {
-                    "name": "Tracking Order (by bookingId)",
+                    "name": "Track Order (by bookingId)",
                     "request": {
                         "method": "GET",
                         "header": [],
@@ -237,12 +232,11 @@
                                 "orders",
                                 "{{booking_id}}"
                             ]
-                        },
-                        "description": "Tracking order berdasarkan bookingId (format KPyyyyMMddXXXX). Otomatis terisi dari response Buat Order."
+                        }
                     }
                 },
                 {
-                    "name": "Cek Status Pembayaran",
+                    "name": "Check Payment Status",
                     "request": {
                         "method": "GET",
                         "header": [],
@@ -258,12 +252,11 @@
                                 "{{order_id}}",
                                 "payment-status"
                             ]
-                        },
-                        "description": "Cek apakah order sudah dibayar. Status: PENDING | PAID | EXPIRED | CANCELLED"
+                        }
                     }
                 },
                 {
-                    "name": "Upload Dokumen (KTP, STNK, BPKB)",
+                    "name": "Upload Documents",
                     "request": {
                         "method": "POST",
                         "header": [],
@@ -273,20 +266,17 @@
                                 {
                                     "key": "ktp",
                                     "type": "file",
-                                    "src": "",
-                                    "description": "Foto KTP (JPG/PNG/PDF, max 10MB)"
+                                    "src": ""
                                 },
                                 {
                                     "key": "stnk",
                                     "type": "file",
-                                    "src": "",
-                                    "description": "Foto STNK (JPG/PNG/PDF, max 10MB)"
+                                    "src": ""
                                 },
                                 {
                                     "key": "bpkb",
                                     "type": "file",
-                                    "src": "",
-                                    "description": "Foto BPKB (JPG/PNG/PDF, max 10MB)"
+                                    "src": ""
                                 }
                             ]
                         },
@@ -302,12 +292,11 @@
                                 "{{order_id}}",
                                 "documents"
                             ]
-                        },
-                        "description": "Upload dokumen KTP, STNK, BPKB. Gunakan form-data, pilih file dari lokal. Tidak perlu Content-Type header (otomatis multipart)."
+                        }
                     }
                 },
                 {
-                    "name": "Batalkan Order",
+                    "name": "Cancel Order",
                     "request": {
                         "method": "PATCH",
                         "header": [],
@@ -323,12 +312,11 @@
                                 "{{order_id}}",
                                 "cancel"
                             ]
-                        },
-                        "description": "Batalkan order yang belum dibayar"
+                        }
                     }
                 },
                 {
-                    "name": "Ajukan Refund",
+                    "name": "Request Refund",
                     "request": {
                         "method": "POST",
                         "header": [
@@ -339,7 +327,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"nominalAktual\": 350000,\n  \"bank\": \"BRI\",\n  \"rekening\": \"123456789012\",\n  \"catatan\": \"Salah pilih layanan\"\n}",
+                            "raw": "{\n  \"actualAmount\": 350000,\n  \"bank\": \"BRI\",\n  \"accountNumber\": \"1234567890\",\n  \"notes\": \"Incorrect service selected\"\n}",
                             "options": {
                                 "raw": {
                                     "language": "json"
@@ -358,8 +346,7 @@
                                 "{{order_id}}",
                                 "refund"
                             ]
-                        },
-                        "description": "Ajukan permohonan refund untuk order yang sudah dibayar"
+                        }
                     }
                 }
             ]

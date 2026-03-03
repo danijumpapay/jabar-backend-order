@@ -1,3 +1,4 @@
+/// <reference path="./src/types/express.d.ts" />
 import express, { Application, Request, Response } from "express";
 import dotenv from "dotenv";
 import cors from "cors";
@@ -5,24 +6,9 @@ import routesV1 from "./src/routes/v1/index";
 import { initializeModels } from "@jumpapay/jumpapay-models";
 import knex from "@config/connection";
 import { logger, Logger } from "@config/logger";
-
 dotenv.config();
 
-// Extend Express Request to support req.log (Pino) and req.currentUser
-declare global {
-  namespace Express {
-    interface Request {
-      log?: Logger;
-      currentUser?: {
-        id: string;
-        role: string;
-        username: string;
-        email: string;
-        name: string;
-      };
-    }
-  }
-}
+// Initialize express app
 
 const app: Application = express();
 const port = process.env.PORT || 3001;
