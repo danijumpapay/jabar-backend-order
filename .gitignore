@@ -6,7 +6,6 @@
 .htaccess
 
 # NPM and build configs (containing secrets)
-.npmrc
 .npmrc.build
 
 # Editor directories and files
