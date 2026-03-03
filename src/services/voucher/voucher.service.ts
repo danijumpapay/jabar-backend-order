@@ -1,7 +1,6 @@
 import { common } from "@jumpapay/jumpapay-models";
 import { VoucherValidateRequest, VoucherValidateResponse, VoucherType } from "@dataTypes/order";
 
-// ─── Hardcoded vouchers (replace with DB query when voucher table is available) ─
 
 interface VoucherRecord {
     code: string;

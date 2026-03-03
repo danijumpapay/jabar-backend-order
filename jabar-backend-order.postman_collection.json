@@ -348,6 +348,72 @@
                             ]
                         }
                     }
+                },
+                {
+                    "name": "Simulate Payment",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "x-dev-secret",
+                                "value": "DEV_SECRET_KEY_HERE",
+                                "description": "Required if in production mode"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/orders/{{order_id}}/simulate-payment",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "orders",
+                                "{{order_id}}",
+                                "simulate-payment"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Manual Status Update",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "x-dev-secret",
+                                "value": "DEV_SECRET_KEY_HERE",
+                                "description": "Required if in production mode"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"statusId\": 4\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/orders/{{order_id}}/status",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "orders",
+                                "{{order_id}}",
+                                "status"
+                            ]
+                        },
+                        "description": "Status IDs: 7 (Waiting), 1 (Paid), 4 (Samsat), 5 (Delivery), 6 (Done), 8 (Cancel)"
+                    }
                 }
             ]
         }

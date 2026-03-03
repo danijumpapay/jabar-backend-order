@@ -6,15 +6,16 @@ import {
     getPaymentStatus,
     cancelOrder,
     createRefund,
+    simulatePayment,
+    updateOrderStatus,
 } from "@controllers/order/order.controller";
 import { uploadDocuments } from "@controllers/document/document.controller";
 
 const router = Router();
 
-// Use memory storage so files are available as buffers for S3 upload
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB per file
+    limits: { fileSize: 10 * 1024 * 1024 },
     fileFilter: (_req, file, cb) => {
         const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "application/pdf"];
         if (allowedTypes.includes(file.mimetype)) {
@@ -25,42 +26,21 @@ const upload = multer({
     },
 });
 
-// ─── Routes ────────────────────────────────────────────────────────────────────
+const devOnly = (req: any, res: any, next: any) => {
+    if (process.env.NODE_ENV === "production" && !req.headers["x-dev-secret"]) {
+        return res.status(403).json({ success: false, message: "Akses ditolak pada mode produksi" });
+    }
+    next();
+};
 
-/**
- * POST /api/v1/orders
- * Create a new order
- */
+
 router.post("/", createOrder);
-
-/**
- * GET /api/v1/orders/:bookingId
- * Get order tracking by bookingId (e.g. KP20260301xxxx)
- */
 router.get("/:bookingId", getOrderByBookingId);
-
-/**
- * GET /api/v1/orders/:orderId/payment-status
- * Check payment status of an order
- */
 router.get("/:orderId/payment-status", getPaymentStatus);
-
-/**
- * PATCH /api/v1/orders/:orderId/cancel
- * Cancel an order
- */
+router.post("/:orderId/simulate-payment", devOnly, simulatePayment);
+router.patch("/:orderId/status", devOnly, updateOrderStatus);
 router.patch("/:orderId/cancel", cancelOrder);
-
-/**
- * POST /api/v1/orders/:orderId/refund
- * Submit refund request
- */
 router.post("/:orderId/refund", createRefund);
-
-/**
- * POST /api/v1/orders/:orderId/documents
- * Upload KTP, STNK, BPKB documents
- */
 router.post(
     "/:orderId/documents",
     upload.fields([

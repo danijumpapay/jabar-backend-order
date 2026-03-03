@@ -148,3 +148,35 @@ export const getVehicleType = (swdValue: number): string => {
         return "TRUK";
     }
 };
+
+export const extractYMD_HI = (dateInput: Date | string): string => {
+    const dateObj = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const day = String(dateObj.getDate()).padStart(2, "0");
+    const hours = String(dateObj.getHours()).padStart(2, "0");
+    const minutes = String(dateObj.getMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
+};
+
+export const get25HoursFromNow = (): string => {
+    const dateObj = new Date();
+    dateObj.setHours(dateObj.getHours() + 25);
+    return dateObj.toISOString();
+};
+
+export const hardcodedTestingNumbers: string[] = [
+    "6281546416749",
+    "6287885713222",
+    "6281905170408",
+    "6281388044805",
+    "6289646615025",
+    "6287802337554",
+    "6285694887705",
+    "6281378781338",
+    "6282115516798",
+    "6288222099475",
+    "60199943898",
+    "81378781338",
+    "081378781338",
+];

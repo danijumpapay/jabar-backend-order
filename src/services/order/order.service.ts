@@ -1,6 +1,8 @@
 import { transaction, service, user, customer, common, company } from "@jumpapay/jumpapay-models";
 import { v4 as uuidv4 } from "uuid";
 import { logger } from "@config/logger";
+import { transaction as ObjectionTransaction } from "objection";
+import db from "@config/connection";
 import {
     CreateOrderRequest,
     RefundRequest,
@@ -16,10 +18,15 @@ import {
     calculateDueDateInDays,
     convertMonthToYM,
     getVehicleTypeId,
-    getVehicleType
+    getVehicleType,
+    extractYMD_HI,
+    get25HoursFromNow,
+    hardcodedTestingNumbers
 } from "@utils/helpers";
+import flipServices from "@services/flip/flip.services";
+import midtransServices from "@services/midtrans/midtrans.services";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 
 const formatPhoneNumber = (phone: string): string => {
     if (!phone) return phone;
@@ -41,43 +48,43 @@ const formatDate = (dateStr: string): string => {
 };
 
 const ORDER_STATUS_STEPS: Record<number, OrderStatusStep[]> = {
-    // Standard Steps in Indonesian for UI
-    7: [ // Waiting for Payment
+
+    7: [
         { title: "Order Dibuat", completed: true },
         { title: "Pembayaran Terverifikasi", completed: false },
         { title: "Proses Dokumen", completed: false },
         { title: "Pengiriman Dokumen", completed: false },
         { title: "Selesai", completed: false },
     ],
-    1: [ // Verifikasi Order
+    1: [
         { title: "Order Dibuat", completed: true },
         { title: "Pembayaran Terverifikasi", completed: true },
         { title: "Proses Dokumen", completed: false },
         { title: "Pengiriman Dokumen", completed: false },
         { title: "Selesai", completed: false },
     ],
-    4: [ // Pengurusan di Samsat
+    4: [
         { title: "Order Dibuat", completed: true },
         { title: "Pembayaran Terverifikasi", completed: true },
         { title: "Proses Dokumen", completed: true },
         { title: "Pengiriman Dokumen", completed: false },
         { title: "Selesai", completed: false },
     ],
-    5: [ // Pengembalian Dokumen
+    5: [
         { title: "Order Dibuat", completed: true },
         { title: "Pembayaran Terverifikasi", completed: true },
         { title: "Proses Dokumen", completed: true },
         { title: "Pengiriman Dokumen", completed: true },
         { title: "Selesai", completed: false },
     ],
-    6: [ // Selesai
+    6: [
         { title: "Order Dibuat", completed: true },
         { title: "Pembayaran Terverifikasi", completed: true },
         { title: "Proses Dokumen", completed: true },
         { title: "Pengiriman Dokumen", completed: true },
         { title: "Selesai", completed: true },
     ],
-    8: [ // Cancel
+    8: [
         { title: "Order Dibatalkan", completed: true },
     ],
 };
@@ -91,37 +98,35 @@ const STATUS_MAP_ID: Record<number, string> = {
     8: "Dibatalkan",
 };
 
-// ─── Order Service ────────────────────────────────────────────────────────────
+
 
 const orderService = {
-    /**
-     * Create a new order.
-     */
+
     async createOrder(data: CreateOrderRequest, companyId: string) {
         const formattedPhoneNumber = formatPhoneNumber(data.phoneNumber);
 
-        try {
-            // 1. Fetch Basic Info
+        return await ObjectionTransaction(db, async (trx) => {
+
             const [selectedSvc, serviceAliasRow, serviceFees, orderCountRow] = await Promise.all([
-                service.Services.query().where("id", Number(data.serviceId)).first() as any,
-                service.MvServices.query().where("id", Number(data.serviceId)).select("alias").first() as any,
-                company.VCompanyFeeServices.query()
+                service.Services.query(trx).where("id", Number(data.serviceId)).first() as any,
+                service.MvServices.query(trx).where("id", Number(data.serviceId)).select("alias").first() as any,
+                company.VCompanyFeeServices.query(trx)
                     .where("service_id", Number(data.serviceId))
                     .andWhere("company_id", companyId) as any,
-                service.VServiceOrderCounts.query().where("id", Number(data.serviceId)).first() as any
+                service.VServiceOrderCounts.query(trx).where("id", Number(data.serviceId)).first() as any
             ]);
 
             const serviceName = selectedSvc?.name || "Layanan Pajak";
             const alias = serviceAliasRow?.alias || initialName(serviceName) || "KP";
 
-            // 2. Manage User & Identity
+
             let userId = "";
-            const existingUser = await user.Users.query().where("phone", formattedPhoneNumber).first() as any;
+            const existingUser = await user.Users.query(trx).where("phone", formattedPhoneNumber).first() as any;
             if (existingUser) {
                 userId = existingUser.id;
             } else {
                 userId = generateId(data.name);
-                await user.Users.query().insert({
+                await user.Users.query(trx).insert({
                     id: userId,
                     name: data.name,
                     phone: formattedPhoneNumber,
@@ -130,13 +135,13 @@ const orderService = {
                 } as any);
             }
 
-            // 3. ID Generation (Align with Bot)
+
             const orderId = generateId(serviceName);
             const orderDetailId = `${orderId}-${generateId(data.name)}`;
             const nextVal = orderCountRow?.nextval || 1;
             const bookingId = `${alias}${String(nextVal).padStart(5, '0')}`;
 
-            // 4. Formula Calculation
+
             const taxData = data.taxData || {
                 PKB_POKOK: "0", PKB_DENDA: "0", SWD_POKOK: "0", SWD_DENDA: "0",
                 ADM_STNK: "0", ADM_TNKB: "0", OPSEN_POKOK: "0", OPSEN_DENDA: "0",
@@ -170,8 +175,8 @@ const orderService = {
                     if (sf.type === "FORMULA" && sf.formula) {
                         try {
                             calculatedValue = useFormula(formulaVariables, sf.formula)();
-                        } catch (error) {
-                            console.error(`Error processing formula for '${sf.name}':`, sf.formula, error);
+                        } catch (err) {
+                            logger.error({ err, formula: sf.formula }, "Formula processing error");
                         }
                     } else {
                         calculatedValue = sf.value || 0;
@@ -189,26 +194,40 @@ const orderService = {
                 })
                 : [];
 
-            // 5. Insert Vehicle
+
             const plateParts = extractPlate(data.plateNumber);
-            const plateRow = await common.Plates.query().where("name", plateParts?.prefix || "D").first() as any;
-            const vehicleId = generateId(vehicleTypeName);
+            const plateRow = await common.Plates.query(trx).where("name", plateParts?.prefix || "D").first() as any;
+            const plateId = plateRow?.id || 2;
+            const plateNumber = plateParts?.number || data.plateNumber;
+            const plateSerial = plateParts?.serial || "";
 
-            await customer.Vehicles.query().insert({
-                id: vehicleId,
+            let vehicleId = "";
+            const existingVehicle = await customer.Vehicles.query(trx).where({
                 user_id: userId,
-                plate_id: plateRow?.id || 2,
-                plate_number: plateParts?.number || data.plateNumber,
-                plate_serial: plateParts?.serial || "",
-                chassis_number: data.chassisNumber,
-                vehicle_type_id: Number(data.vehicleType) || vehicleTypeId,
-            } as any).catch(e => logger.warn({ error: e.message }, "Failed to insert vehicle"));
+                plate_id: plateId,
+                plate_number: plateNumber,
+                plate_serial: plateSerial
+            }).first() as any;
 
-            // 6. Insert Order & Detail
-            // Find City ID matching data.city name, fallback to Kota Bandung (ID: 30)
+            if (existingVehicle) {
+                vehicleId = existingVehicle.id;
+            } else {
+                vehicleId = generateId(vehicleTypeName);
+                await customer.Vehicles.query(trx).insert({
+                    id: vehicleId,
+                    user_id: userId,
+                    plate_id: plateId,
+                    plate_number: plateNumber,
+                    plate_serial: plateSerial,
+                    chassis_number: data.chassisNumber,
+                    vehicle_type_id: vehicleTypeId,
+                } as any);
+            }
+
+
             let cityMatch = null;
             if (data.city) {
-                cityMatch = await common.Cities.query()
+                cityMatch = await common.Cities.query(trx)
                     .whereRaw("LOWER(name) LIKE ?", [`%${data.city.toLowerCase()}%`])
                     .first() as any;
             }
@@ -217,7 +236,7 @@ const orderService = {
                 const knownCities = ["Bandung", "Jakarta", "Bekasi", "Depok", "Bogor", "Cirebon", "Sukabumi", "Garut", "Tasikmalaya"];
                 for (const cityName of knownCities) {
                     if (data.address.toLowerCase().includes(cityName.toLowerCase())) {
-                        cityMatch = await common.Cities.query()
+                        cityMatch = await common.Cities.query(trx)
                             .whereRaw("LOWER(name) LIKE ?", [`%${cityName.toLowerCase()}%`])
                             .first() as any;
                         if (cityMatch) break;
@@ -226,21 +245,21 @@ const orderService = {
             }
             const finalCityId = cityMatch?.id || 30;
 
-            await transaction.Orders.query().insert({
+            await transaction.Orders.query(trx).insert({
                 id: orderId,
                 user_id: userId,
                 company_id: companyId,
                 order_status_id: 7,
                 booking_id: bookingId,
                 phone: formattedPhoneNumber,
-                source: "WEB - Akang Pajak",
+                source: "WEB - JABAR",
                 price: Number(data.totalAmount),
                 email: data.email,
                 order_category: "B2C",
                 city_id: finalCityId
             } as any);
 
-            await transaction.OrderDetails.query().insert({
+            await transaction.OrderDetails.query(trx).insert({
                 id: orderDetailId,
                 order_id: orderId,
                 service_id: Number(data.serviceId),
@@ -250,18 +269,42 @@ const orderService = {
                 plate_prefix: plateParts?.prefix || "",
                 plate_number: plateParts?.number || data.plateNumber,
                 plate_serial: plateParts?.serial || "",
+                is_stnk_equals_ktp: true
+
             } as any);
 
-            // 7. Insert Fees
+
             if (serviceFeesForm.length > 0) {
-                await transaction.OrderDetailFees.query().insert(serviceFeesForm);
+                await transaction.OrderDetailFees.query(trx).insert(serviceFeesForm);
             }
 
-            // 8. Order Form Datas
-            await transaction.OrderFormDatas.query().insert({
+
+            const formTokenMap: Record<string, string> = {
+                "baln": "BALIK_NAMA",
+                "blp": "BLOKIR_PLAT",
+                "mcb": "MUTASI_CABUT_BERKAS",
+                "mlk": "MUTASI_LENGKAP",
+                "us5t": "PERPANJANG_PAJAK_5_TAHUNAN",
+                "ust": "PERPANJANG_PAJAK_TAHUNAN"
+            };
+            const formToken = formTokenMap[alias.toLowerCase()] || "WEB_ORDER";
+
+            let samsatAddress = data.address || `${data.city}, Jawa Barat`;
+            let addressName = "Alamat Order Web";
+            let isPickup = true;
+            let isReturn = true;
+
+            if (data.isSamsatPickup) {
+                samsatAddress = data.taxData?.WILAYAH_SAMSAT || samsatAddress;
+                addressName = "Pengambilan di Samsat";
+                isPickup = false;
+                isReturn = false;
+            }
+
+            await transaction.OrderFormDatas.query(trx).insert({
                 id: uuidv4(),
                 order_detail_id: orderDetailId,
-                form_token: "WEB_ORDER",
+                form_token: formToken,
                 form_data: {
                     customer: {
                         name: data.name,
@@ -272,11 +315,11 @@ const orderService = {
                     vehicle: {
                         plateNumber: data.plateNumber,
                         chassisNumber: data.chassisNumber,
-                        vehicleType: data.vehicleType,
+                        vehicleType: vehicleTypeName,
                         ...taxData
                     },
                     logistics: {
-                        address: data.address,
+                        address: samsatAddress,
                         city: data.city,
                         addressNote: data.addressNote,
                         deliveryFee: data.deliveryFee,
@@ -290,64 +333,171 @@ const orderService = {
                 },
             } as any);
 
-            // 9. Insert addresses
-            if (data.address) {
+
+            if (data.address || data.isSamsatPickup) {
                 const addressId = generateId(data.name);
 
-                await customer.Addresses.query().insert({
+                await customer.Addresses.query(trx).insert({
                     id: addressId,
                     user_id: userId,
                     city_id: finalCityId,
-                    name: "Alamat Order Web",
+                    name: addressName,
                     address_type: "HOUSE",
-                    raw_address: data.address,
+                    raw_address: samsatAddress,
                     landmark: data.addressNote || "",
                     latitude: data.latitude,
                     longitude: data.longitude,
-                    is_pickup_address: true,
-                    is_return_address: true
+                    is_pickup_address: isPickup,
+                    is_return_address: isReturn
                 } as any);
 
                 await Promise.all([
-                    transaction.OrderAddresses.query().insert({
+                    transaction.OrderAddresses.query(trx).insert({
                         id: uuidv4(),
                         order_id: orderId,
                         address_id: addressId,
                         user_id: userId,
                         city_name: data.city || "",
-                        raw_address: data.address,
+                        raw_address: samsatAddress,
                         landmark: data.addressNote || "",
                         latitude: data.latitude,
                         longitude: data.longitude,
                         delivery_type: "PICKUP",
-                        status: "WAITING FOR DRIVER"
+                        status: "WAITING FOR DRIVER",
                     } as any),
-                    transaction.OrderAddresses.query().insert({
+                    transaction.OrderAddresses.query(trx).insert({
                         id: uuidv4(),
                         order_id: orderId,
                         address_id: addressId,
                         user_id: userId,
                         city_name: data.city || "",
-                        raw_address: data.address,
+                        raw_address: samsatAddress,
                         landmark: data.addressNote || "",
                         latitude: data.latitude,
                         longitude: data.longitude,
                         delivery_type: "RETURN",
-                        status: "WAITING FOR DRIVER"
+                        status: "WAITING FOR DRIVER",
                     } as any)
                 ]);
             }
 
-            logger.info({ orderId, bookingId }, "Order created successfully aligned with Bot");
+
+            const paymentMethodName = data.paymentMethod || "QRIS";
+            const paymentMethodType = "DIGITAL_WALLET";
+
+
+            const totalRecalculated = serviceFeesForm.reduce((sum: number, fee: any) => sum + fee.value, 0);
+            const finalPrice = totalRecalculated;
+            const EWalletTax = 0;
+
+            await Promise.all([
+                transaction.Orders.query(trx).patch({ price: finalPrice } as any).where("id", orderId),
+                transaction.OrderDetails.query(trx).patch({ price: finalPrice } as any).where("id", orderDetailId)
+            ]);
+
+            const paymentUniqCode = `${orderId}-${Date.now().toString().slice(-6)}`;
+            let flipAmount = finalPrice;
+
+            if (hardcodedTestingNumbers.includes(formattedPhoneNumber)) {
+                flipAmount = 1000;
+            }
+
+            const expiredAtStr = get25HoursFromNow();
+            let generatePayment: any = { success: false, message: "Metode pembayaran tidak didukung" };
+
+            const flipPayload = {
+                title: serviceName,
+                name: data.name,
+                email: data.email,
+                amount: flipAmount,
+                refId: paymentUniqCode,
+                expiredDate: extractYMD_HI(expiredAtStr),
+            };
+
+            const midtransPayload = {
+                amount: flipAmount,
+                refId: paymentUniqCode,
+                email: data.email,
+                name: data.name,
+                bank: "",
+                expiredDate: expiredAtStr
+            };
+
+            const methodUpper = paymentMethodName.toUpperCase();
+
+
+            const bankVA = ["BJB", "MANDIRI", "BCA", "BNI", "BRI", "PERMATA", "CIMB"];
+
+            if (methodUpper === "QRIS") {
+                generatePayment = await flipServices.createQRIS(flipPayload);
+            } else if (methodUpper === "SHOPEEPAY") {
+                generatePayment = await flipServices.createShopeePay(flipPayload);
+            } else if (methodUpper === "DANA") {
+                generatePayment = await flipServices.createDana(flipPayload);
+            } else if (methodUpper === "OVO") {
+                generatePayment = await flipServices.createOvo(flipPayload);
+            } else if (methodUpper === "LINKAJA") {
+                generatePayment = await flipServices.createLinkAja(flipPayload);
+            } else if (bankVA.includes(methodUpper)) {
+
+                generatePayment = await midtransServices.createVA({
+                    ...midtransPayload,
+                    bank: methodUpper.toLowerCase()
+                });
+            } else {
+
+                generatePayment = await flipServices.createQRIS(flipPayload);
+            }
+
+            if (!generatePayment.success) {
+                throw new Error(`Gagal membuat tagihan ${paymentMethodName}: ${generatePayment.message || 'Payment service error'}`);
+            }
+
+
+            const paymentDetails = generatePayment.data?.bill_payment || generatePayment.data;
+            const paymentStatus = "PENDING";
+
+            await transaction.Payments.query(trx).insert({
+                id: paymentUniqCode,
+                company_id: companyId,
+                invoice_number: bookingId,
+                payment_method_name: paymentMethodName,
+                payment_method_type: paymentMethodType,
+                amount: finalPrice,
+                expired_at: expiredAtStr,
+                payment_details: paymentDetails,
+                status: paymentStatus
+            } as any);
+
+
+            await transaction.OrderDetailFees.query(trx).insert({
+                order_detail_id: orderDetailId,
+                order_fee_name: 100,
+                order_fee_group: 100,
+                fee_name: "Pajak Metode Pembayaran",
+                fee_group_name: "Lainnya",
+                value: EWalletTax
+            } as any);
+
+
+            await transaction.Orders.query(trx).patch({
+                price: finalPrice
+            } as any).where("id", orderId);
+
+            await transaction.PaymentItems.query(trx).insert({
+                payment_id: paymentUniqCode,
+                order_id: orderId
+            } as any);
+
+            logger.info({ orderId, bookingId, paymentDetails }, "Order created successfully aligned with Bot and Atomized");
 
             return {
                 orderId,
                 bookingId,
+                paymentDetails: paymentDetails,
+                finalTotal: finalPrice
             };
-        } catch (error) {
-            console.error("DB INSERT ERROR:", error);
-            throw error;
-        }
+        });
     },
 
     async getOrderByBookingId(bookingId: string) {
@@ -362,10 +512,16 @@ const orderService = {
                 "orders.created_at as createdAt",
                 "os.name as orderStatus",
                 "order_details.name as customerName",
+                "order_details.phone_number as phoneNumber",
+                "order_details.plate_number as plateNumber",
                 "order_details.service_id as serviceId",
+                "payments.payment_details as paymentDetails",
+                "payments.payment_method_name as paymentMethodName"
             )
             .leftJoin("common.order_status as os", "os.id", "orders.order_status_id")
             .leftJoin("transaction.order_details", "order_details.order_id", "orders.id")
+            .leftJoin("transaction.payment_items", "payment_items.order_id", "orders.id")
+            .leftJoin("transaction.payments", "payments.id", "payment_items.payment_id")
             .whereRaw("LOWER(orders.booking_id) = ?", [bookingId.toLowerCase()])
             .first() as any;
     },
@@ -382,10 +538,16 @@ const orderService = {
                 "orders.created_at as createdAt",
                 "os.name as orderStatus",
                 "order_details.name as customerName",
+                "order_details.phone_number as phoneNumber",
+                "order_details.plate_number as plateNumber",
                 "order_details.service_id as serviceId",
+                "payments.payment_details as paymentDetails",
+                "payments.payment_method_name as paymentMethodName"
             )
             .leftJoin("common.order_status as os", "os.id", "orders.order_status_id")
             .leftJoin("transaction.order_details", "order_details.order_id", "orders.id")
+            .leftJoin("transaction.payment_items", "payment_items.order_id", "orders.id")
+            .leftJoin("transaction.payments", "payments.id", "payment_items.payment_id")
             .whereRaw("LOWER(orders.id) = ?", [orderId.toLowerCase()])
             .first() as any;
     },
@@ -417,9 +579,15 @@ const orderService = {
             orderStatusId: order.orderStatusId,
             name: order.customerName || "-",
             email: order.email || "-",
+            phoneNumber: order.phoneNumber || "-",
+            plateNumber: order.plateNumber || "-",
             serviceName: serviceName,
             totalAmount: formatCurrency(Number(order.price)),
+            finalTotal: Number(order.price),
+            paymentDetails: order.paymentDetails,
+            paymentMethodName: order.paymentMethodName,
             orderDate: formatDate(order.createdAt),
+            createdAt: order.createdAt,
             steps: this.buildStatusSteps(order.orderStatusId),
         };
     },
@@ -452,20 +620,100 @@ const orderService = {
 
         await transaction.Orders.query()
             .patch({ order_status_id: 8 } as any)
-            .where("id", orderId);
+            .where("id", order.orderId);
 
-        logger.info({ orderId }, "Order cancelled");
+        logger.info({ orderId: order.orderId }, "Order cancelled");
         return true;
     },
 
-    async createRefund(orderId: string, data: RefundRequest) {
-        await transaction.Orders.query()
-            .patch({ order_status_id: 5 } as any)
-            .where("id", orderId);
+    async updateOrderStatus(orderId: string, statusId: number) {
 
-        logger.info({ orderId, bank: data.bank }, "Refund request submitted");
-        return { refundId: generateId("refund"), estimatedTimeline: "7-14 Hari Kerja" };
+        let targetId = orderId;
+        if (orderId.startsWith("UST") || orderId.length < 15) {
+            const order = await this.getOrderByBookingId(orderId);
+            if (order) targetId = order.orderId;
+        }
+
+        const updated = await transaction.Orders.query()
+            .patch({ order_status_id: statusId } as any)
+            .where("id", targetId);
+
+        if (!updated) return null;
+
+        logger.info({ orderId: targetId, statusId }, "Order status updated");
+        return { orderId: targetId, statusId };
     },
+
+    async createRefund(orderId: string, data: RefundRequest) {
+
+        const order = await transaction.Orders.query().where("id", orderId).first();
+        if (!order) throw new Error("Order not found");
+
+
+        return {
+            orderId,
+            refundStatus: "SUBMITTED",
+            estimatedCompletion: "3-5 Hari Kerja",
+        };
+    },
+
+    async simulatePayment(idOrBookingId: string) {
+        const searchId = idOrBookingId.trim();
+        logger.info({ searchId }, "Starting payment simulation");
+
+        let orderId: string | null = null;
+        const matched = await (transaction.Orders as any).query()
+            .whereRaw("LOWER(orders.booking_id) = ?", [searchId.toLowerCase()])
+            .orWhere("orders.id", searchId)
+            .first();
+
+        if (matched) {
+            orderId = matched.id;
+        } else {
+            const pmnt = await db("transaction.payments")
+                .whereRaw("LOWER(invoice_number) = ?", [searchId.toLowerCase()])
+                .orWhere("id", searchId)
+                .first();
+
+            if (pmnt) {
+                const pi = await db("transaction.payment_items").where("payment_id", pmnt.id).first();
+                if (pi) orderId = pi.order_id;
+            }
+        }
+
+        if (!orderId) {
+            logger.warn({ searchId }, "No match found for payment simulation");
+            return null;
+        }
+
+        try {
+            await db.transaction(async (trx) => {
+                await trx("transaction.orders")
+                    .where("id", orderId)
+                    .update({
+                        order_status_id: 1,
+                        paid_at: new Date().toISOString()
+                    });
+
+                const pItems = await trx("transaction.payment_items")
+                    .where("order_id", orderId)
+                    .select("payment_id");
+
+                const pIds = pItems.map(item => item.payment_id);
+                if (pIds.length > 0) {
+                    await trx("transaction.payments")
+                        .whereIn("id", pIds)
+                        .update({ status: "PAID" });
+                }
+            });
+
+            logger.info({ orderId }, "Payment simulation successful");
+            return { orderId, status: "PAID" };
+        } catch (err) {
+            logger.error({ err, orderId }, "Payment simulation transaction failed");
+            throw err;
+        }
+    }
 };
 
 export default orderService;

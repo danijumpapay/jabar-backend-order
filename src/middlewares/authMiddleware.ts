@@ -14,8 +14,6 @@ interface UserPayload {
   isVerified: string;
 }
 
-// Auth middleware
-
 const requireAuth = (
   req: Request,
   res: Response,

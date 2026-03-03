@@ -3,9 +3,6 @@ import { successResponse, errorResponse } from "@utils/response";
 import voucherService from "@services/voucher/voucher.service";
 import Joi from "joi";
 
-/**
- * POST /api/v1/vouchers/validate
- */
 export const validateVoucher = async (req: Request, res: Response): Promise<void> => {
     try {
         const schema = Joi.object({

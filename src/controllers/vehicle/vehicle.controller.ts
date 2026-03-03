@@ -3,10 +3,6 @@ import { successResponse, errorResponse } from "@utils/response";
 import sambaraService from "@services/sambara/sambara.service";
 import Joi from "joi";
 
-/**
- * POST /api/v1/vehicle/check
- * Proxy ke Sambara — cek info pajak kendaraan berdasarkan plat nomor
- */
 export const checkVehicle = async (req: Request, res: Response): Promise<void> => {
     try {
         const schema = Joi.object({

@@ -5,10 +5,6 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-/**
- * GET /api/v1/services
- * Get list of available services
- */
 export const getServices = async (_req: Request, res: Response): Promise<void> => {
     try {
         const services = await service.Services?.query()
@@ -21,10 +17,6 @@ export const getServices = async (_req: Request, res: Response): Promise<void> =
     }
 };
 
-/**
- * GET /api/v1/promos
- * Get list of active promos
- */
 export const getPromos = async (_req: Request, res: Response): Promise<void> => {
     try {
         const promos = await common.Vouchers?.query()

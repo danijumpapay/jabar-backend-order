@@ -1,0 +1,6 @@
+
+> jabar-backend-order@1.0.0 dev /Users/danixsofyan/jabar/jabar-backend-order
+> ts-node -r tsconfig-paths/register index.ts
+
+{"level":30,"time":"2026-03-03T05:58:20.349Z","msg":"Server started on http://localhost:3001"}
+{"level":30,"time":"2026-03-03T05:58:45.992Z","orderId":"US4131235820264327","bookingId":"UST00001","msg":"Order created successfully aligned with Bot and Atomized"}

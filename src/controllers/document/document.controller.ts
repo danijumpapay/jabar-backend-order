@@ -5,16 +5,10 @@ import { transaction } from "@jumpapay/jumpapay-models";
 import { logger } from "@config/logger";
 import orderService from "@services/order/order.service";
 
-/**
- * POST /api/v1/orders/:orderId/documents
- * Upload KTP, STNK, BPKB for an order.
- * Expects multipart/form-data with fields: ktp, stnk, bpkb
- */
 export const uploadDocuments = async (req: Request, res: Response): Promise<void> => {
     try {
         const { orderId } = req.params;
 
-        // Verify order exists
         const order = await orderService.getOrderById(orderId);
         if (!order) {
             res.status(404).json(errorResponse("Order tidak ditemukan"));
@@ -52,7 +46,6 @@ export const uploadDocuments = async (req: Request, res: Response): Promise<void
             );
         }
 
-        // Update order_details with document URLs
         await transaction.OrderDetails.query()
             .patch({ document_urls: JSON.stringify(uploadResults) } as any)
             .where("order_id", orderId);

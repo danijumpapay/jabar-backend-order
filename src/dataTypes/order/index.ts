@@ -1,4 +1,3 @@
-// ─── Order ────────────────────────────────────────────────────────────────────
 
 export interface CreateOrderRequest {
     name: string;
@@ -20,6 +19,7 @@ export interface CreateOrderRequest {
     mutationType?: string;
     latitude?: number;
     longitude?: number;
+    isSamsatPickup?: boolean;
     taxData?: {
         PKB_POKOK: string;
         PKB_DENDA: string;
@@ -32,6 +32,8 @@ export interface CreateOrderRequest {
         JUMLAH_BAYAR: string;
         TGL_AKHIR_PAJAK: string;
         TGL_AKHIR_STNKB: string;
+        WILAYAH_SAMSAT?: string;
+        [key: string]: any;
     };
 }
 
@@ -48,12 +50,11 @@ export interface OrderDetailResponse {
     name: string;
     email: string;
     serviceName: string;
-    totalAmount: string; // Formatted price
+    totalAmount: string;
     orderDate: string;
     steps: OrderStatusStep[];
 }
 
-// ─── Payment ──────────────────────────────────────────────────────────────────
 
 export interface PaymentStatusResponse {
     paid: boolean;
@@ -61,7 +62,6 @@ export interface PaymentStatusResponse {
     paidAt?: string | null;
 }
 
-// ─── Voucher ──────────────────────────────────────────────────────────────────
 
 export type VoucherType = "DISCOUNT" | "ONGKIR";
 
@@ -77,7 +77,6 @@ export interface VoucherValidateResponse {
     message: string;
 }
 
-// ─── Refund ───────────────────────────────────────────────────────────────────
 
 export interface RefundRequest {
     actualAmount: number;
@@ -86,7 +85,6 @@ export interface RefundRequest {
     notes?: string;
 }
 
-// ─── File Upload ──────────────────────────────────────────────────────────────
 
 export interface DocumentUploadResult {
     ktp?: string | null;
@@ -94,7 +92,6 @@ export interface DocumentUploadResult {
     bpkb?: string | null;
 }
 
-// ─── Services ─────────────────────────────────────────────────────────────────
 
 export interface ServiceItem {
     id: string;
@@ -106,7 +103,6 @@ export interface ServiceItem {
     isActive: boolean;
 }
 
-// ─── Promo ────────────────────────────────────────────────────────────────────
 
 export interface PromoItem {
     id: string;

@@ -7,7 +7,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// ─── Validation Schemas ───────────────────────────────────────────────────────
+
 
 const createOrderSchema = Joi.object({
     name: Joi.string().min(2).required(),
@@ -25,10 +25,11 @@ const createOrderSchema = Joi.object({
     paymentMethod: Joi.string().required(),
     voucherCode: Joi.string().optional().allow(""),
     promoId: Joi.string().optional().allow(""),
-    vehicleType: Joi.string().optional().allow(""),
+    vehicleType: Joi.string().optional().allow("", "Mobil", "Motor", "Truk", "MOBIL", "MOTOR", "TRUK"),
     mutationType: Joi.string().optional().allow(""),
     latitude: Joi.number().optional(),
     longitude: Joi.number().optional(),
+    isSamsatPickup: Joi.boolean().optional(),
     taxData: Joi.object().unknown(true).optional(),
 }).unknown(true);
 
@@ -39,12 +40,9 @@ const refundSchema = Joi.object({
     notes: Joi.string().optional().allow(""),
 });
 
-// ─── Controllers ──────────────────────────────────────────────────────────────
 
-/**
- * POST /api/v1/orders
- * Create a new order
- */
+
+
 export const createOrder = async (req: Request, res: Response): Promise<void> => {
     try {
         const { error, value } = createOrderSchema.validate(req.body, { abortEarly: false });
@@ -68,10 +66,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
     }
 };
 
-/**
- * GET /api/v1/orders/:bookingId
- * Get order tracking detail by bookingId (e.g. KP2026xxxxx)
- */
+
 export const getOrderByBookingId = async (req: Request, res: Response): Promise<void> => {
     try {
         const { bookingId } = req.params;
@@ -95,10 +90,7 @@ export const getOrderByBookingId = async (req: Request, res: Response): Promise<
     }
 };
 
-/**
- * GET /api/v1/orders/:orderId/payment-status
- * Get payment status of an order by internal orderId (UUID)
- */
+
 export const getPaymentStatus = async (req: Request, res: Response): Promise<void> => {
     try {
         const { orderId } = req.params;
@@ -117,10 +109,7 @@ export const getPaymentStatus = async (req: Request, res: Response): Promise<voi
     }
 };
 
-/**
- * PATCH /api/v1/orders/:orderId/cancel
- * Cancel an order
- */
+
 export const cancelOrder = async (req: Request, res: Response): Promise<void> => {
     try {
         const { orderId } = req.params;
@@ -143,10 +132,7 @@ export const cancelOrder = async (req: Request, res: Response): Promise<void> =>
     }
 };
 
-/**
- * POST /api/v1/orders/:orderId/refund
- * Submit a refund request
- */
+
 export const createRefund = async (req: Request, res: Response): Promise<void> => {
     try {
         const { orderId } = req.params;
@@ -171,5 +157,41 @@ export const createRefund = async (req: Request, res: Response): Promise<void> =
     } catch (err: any) {
         req.log?.error({ err }, "createRefund error");
         res.status(500).json(errorResponse("Terjadi kesalahan saat mengirim permintaan refund"));
+    }
+};
+
+
+export const simulatePayment = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { orderId } = req.params;
+        req.log?.info({ orderId }, "Simulating payment from controller");
+        const result = await orderService.simulatePayment(orderId);
+        if (!result) {
+            res.status(404).json(errorResponse("Order atau Tagihan tidak ditemukan"));
+            return;
+        }
+        res.status(200).json(successResponse("Pembayaran berhasil disimulasikan", { results: result }));
+    } catch (err: any) {
+        req.log?.error({ err }, "simulatePayment error");
+        res.status(500).json(errorResponse("Terjadi kesalahan simulasi"));
+    }
+};
+
+
+export const updateOrderStatus = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { orderId } = req.params;
+        const { statusId } = req.body;
+
+        const result = await orderService.updateOrderStatus(orderId, Number(statusId));
+        if (!result) {
+            res.status(404).json(errorResponse("Order tidak ditemukan"));
+            return;
+        }
+
+        res.status(200).json(successResponse("Status order berhasil diperbarui", { results: result }));
+    } catch (err: any) {
+        req.log?.error({ err }, "updateOrderStatus error");
+        res.status(500).json(errorResponse("Terjadi kesalahan saat memperbarui status order"));
     }
 };

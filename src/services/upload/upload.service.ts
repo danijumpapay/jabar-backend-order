@@ -18,9 +18,7 @@ const uploadService = {
         const ext = path.extname(originalName);
         const key = `${folder}/${uuidv4()}${ext}`;
 
-        // Dynamic import of aws-sdk to avoid build errors if not installed
         try {
-            // eslint-disable-next-line @typescript-eslint/no-var-requires
             const AWS = require("aws-sdk");
             const s3 = new AWS.S3({
                 endpoint: process.env.OBJECT_STORAGE_END_POINT,
