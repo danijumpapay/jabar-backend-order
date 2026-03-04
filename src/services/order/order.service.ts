@@ -567,12 +567,19 @@ const orderService = {
         }
 
         const statusMap = await getOrderStatusMap();
-        const statusTitle = statusMap[currentStatusId] || order.orderStatus || "Menunggu Pembayaran";
+        let statusTitle = statusMap[currentStatusId] || order.orderStatus || "Menunggu Pembayaran";
+        let cancelReason = "";
+
+        if (currentStatusId === 8) {
+            statusTitle = "Dibatalkan";
+            cancelReason = "Pesanan dibatalkan otomatis karena pembayaran tidak diterima dalam batas waktu yang ditentukan.";
+        }
 
         return {
             orderId: order.orderId,
             bookingId: order.bookingId,
             status: statusTitle,
+            cancelReason,
             orderStatusId: currentStatusId,
             name: order.customerName || "-",
             email: order.email || "-",
