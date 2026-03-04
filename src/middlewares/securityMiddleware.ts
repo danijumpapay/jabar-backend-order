@@ -33,10 +33,12 @@ export const statusCheckRateLimit = rateLimit({
 });
 
 export const requireApiKey = (req: Request, res: Response, next: NextFunction) => {
+    const excluded = ["/"];
+    if (excluded.includes(req.path)) return next();
+
     const apiKey = process.env.API_KEY;
-    if (!apiKey) {
-        return next();
-    }
+    if (!apiKey) return next();
+
     const provided = req.headers["x-api-key"];
     if (!provided || provided !== apiKey) {
         return res.status(401).json({ success: false, message: "Invalid or missing API key." });
