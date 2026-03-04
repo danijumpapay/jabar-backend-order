@@ -80,8 +80,6 @@ const buildStepsFromDB = async (currentStatusId: number): Promise<OrderStatusSte
     }
 
     const resolvedId = (currentStatusId === 11 || currentStatusId === 1) ? 3 : currentStatusId;
-
-    // Determine the furthest completed step
     const currentIndex = KANGPAJAK_FLOW.indexOf(resolvedId);
     const effectiveIndex = currentIndex >= 0 ? currentIndex : 0;
 
@@ -484,11 +482,15 @@ const orderService = {
 
             logger.info({ orderId, bookingId, paymentDetails }, "Order created successfully aligned with Bot and Atomized");
 
-            // Send order confirmation email
             this.getOrderDetail(bookingId).then((orderDetail) => {
                 if (orderDetail && orderDetail.email) {
-                    emailService.sendOrderConfirmation(orderDetail.email, orderDetail.name, orderDetail, "Konfirmasi Pesanan JumpaPay")
-                        .catch(err => logger.error({ err, orderId }, "Error sending order confirmation email"));
+                    let paymentLink = `https://order.kangpajak.com/tracking?id=${bookingId}`;
+                    if (paymentDetails?.link_url) {
+                         paymentLink = paymentDetails.link_url;
+                    } 
+                    
+                    emailService.sendOrderCreated(orderDetail.email, orderDetail.name, orderDetail, paymentLink)
+                        .catch(err => logger.error({ err, orderId }, "Error sending order created email"));
                 }
             }).catch(err => logger.error({ err, orderId }, "Error fetching order detail for notification"));
 
@@ -756,7 +758,6 @@ const orderService = {
 
             logger.info({ orderId, bookingId }, "Payment simulation successful");
 
-            // Send notification email
             this.getOrderDetail(bookingId).then((orderDetail) => {
                 if (orderDetail && orderDetail.email) {
                     emailService.sendOrderConfirmation(orderDetail.email, orderDetail.name, orderDetail)

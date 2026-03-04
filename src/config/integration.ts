@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-let integrationBaseURL: string | undefined = process.env.INTEGRATION_BASE_URL || "https://integration.jumpapay.com/api";
+let integrationBaseURL: string | undefined = process.env.INTEGRATION_BASE_URL;
 
 const integrationInstance = () => {
   const instance = axios.create({

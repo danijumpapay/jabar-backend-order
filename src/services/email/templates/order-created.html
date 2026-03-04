@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Konfirmasi Pembayaran Kang Pajak</title>
+    <title>Menunggu Pembayaran Kang Pajak</title>
 
 </head>
 
@@ -16,15 +16,15 @@
             <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                 <tr>
                     <td style="vertical-align: middle; text-align: center;">
-                        <img src="https://kangpajak.com/wp-content/uploads/2026/02/kang-pajak-with-doc.png" style="width: 100%;max-width: 200px;height: auto;">
+                        <img src="https://kangpajak.com/wp-content/uploads/2026/02/kang-pajak-with-doc.png" style="width: 100%;max-width: 180px;height: auto;">
                     </td>
                     <td style="padding: 40px 30px 40px 0; vertical-align: middle;" width="65%">
                         <h2 style="margin: 0; font-size: 20px; line-height: 26px; font-weight: 700; color: #ffffff;">
-                            Mau Urus Pajak Kendaraan Tanpa Ribet? Pakai Kang Pajak Aja!
+                            Selesaikan Pembayaran Kamu!
                         </h2>
                         <p
                             style="margin: 10px 0 0 0; font-size: 12px; line-height: 18px; color: #ffffff; opacity: 0.9;">
-                            Mitra resmi Bapenda Jabar dan Bank BJB untuk melayani pembayaran pajak kendaraan bermotor secara online di daerah Jawa Barat
+                            Pesanan kamu telah kami terima. Segera lakukan pembayaran agar pengurusan pajakmu dapat segera di proses.
                         </p>
                     </td>
                 </tr>
@@ -33,10 +33,10 @@
 
         <div class="content" style="padding: 40px 30px 10px 30px;">
             <div class="text-body"
-                style="font-size: 14px;line-height: 20px;letter-spacing: -0.01em;color: #333333;margin-top: 30px;margin-bottom: 20px;">
+                style="font-size: 14px;line-height: 20px;letter-spacing: -0.01em;color: #333333;margin-top: 10px;margin-bottom: 20px;">
                 <p>Halo, <strong>{{NAME}}</strong></p>
-                <p>Terima kasih telah menggunakan Kang Pajak sebagai metode pembayaran pajak kendaraan kamu. Silakan cek
-                    detail transaksi berikut untuk memastikan data sudah sesuai.</p>
+                <p>Terima kasih telah mempercayakan pengurusan pajak kendaraanmu melalui Kang Pajak! Berikut ini adalah rincian pesanan yang telah kamu buat.</p>
+                <p>Silakan lakukan pembayaran sesuai dengan metode yang kamu pilih.</p>
             </div>
 
             <div class="transaction-box"
@@ -97,7 +97,7 @@
                             style="width: 160px;color: #666666;padding: 6px 0;vertical-align: top;font-size: 13px;line-height: 18px;">
                             Total Pembayaran</td>
                         <td class="value"
-                            style="font-weight: 700;color: #111111;padding: 6px 0;vertical-align: top;font-size: 13px;line-height: 18px;">
+                            style="font-weight: 700;color: #E33535;padding: 6px 0;vertical-align: top;font-size: 13px;line-height: 18px;">
                             : {{TOTAL_AMOUNT}}</td>
                     </tr>
                     <tr>
@@ -105,18 +105,27 @@
                             style="padding-top: 10px;width: 160px;color: #666666;padding: 6px 0;vertical-align: top;font-size: 13px;line-height: 18px;">
                             Status Pembayaran</td>
                         <td class="value"
-                            style="padding-top: 10px;color: #28a745;font-weight: 700;padding: 6px 0;vertical-align: top;font-size: 13px;line-height: 18px; text-transform: uppercase;">
+                            style="padding-top: 10px;color: #E33535;font-weight: 700;padding: 6px 0;vertical-align: top;font-size: 13px;line-height: 18px; text-transform: uppercase;">
                             : {{STATUS}}</td>
                     </tr>
                 </table>
             </div>
 
+            <div style="margin-top: 30px; text-align: center;">
+                <p style="font-size: 14px; margin-bottom: 20px; color: #333333;">Klik tombol di bawah ini untuk selesaikan pesanan dan melakukan pembayaran:</p>
+                <a href="{{PAYMENT_LINK}}" target="_blank" style="display: inline-block; padding: 14px 28px; background-color: #4FB5E1; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 15px; box-shadow: 0 4px 6px rgba(79, 181, 225, 0.2);">
+                    Bayar Sekarang
+                </a>
+            </div>
+
             <p class="text-body"
-                style="font-size: 14px;line-height: 20px;letter-spacing: -0.01em;color: #333333;margin-top: 30px;margin-bottom: 20px;">
-                Terima kasih telah bertransaksi dengan Kang Pajak.</p>
+                style="font-size: 13px;line-height: 20px;letter-spacing: -0.01em;color: #666666;margin-top: 30px;margin-bottom: 20px;text-align: center;">
+                Jika tombol di atas tidak berfungsi, salin dan buka tautan berikut di browser kamu:<br>
+                <a href="{{PAYMENT_LINK}}" style="color: #4FB5E1; word-break: break-all;">{{PAYMENT_LINK}}</a>
+            </p>
 
             <div class="contact-section"
-                style="margin-top: 10px;border-top: 1px solid #eeeeee;font-size: 11px;line-height: 15px;">
+                style="margin-top: 40px;border-top: 1px solid #eeeeee;font-size: 11px;line-height: 15px;">
                 <p><strong>Butuh Bantuan? Kontak Kang Pajak di bawah ini:</strong></p>
 
                 <p style="margin: 10px 0;">
@@ -136,17 +145,11 @@
         <div class="footer"
             style="padding: 10px 30px 30px 30px;border-top: 1px solid #eeeeee;color: #888888;font-size: 11px;line-height: 16px;">
             <p style="margin-bottom: 5px;">Email ini dikirim oleh Kang Pajak dan
-                ditujukan khusus kepada pengguna terdaftar Kang Pajak.<br> Seluruh informasi yang tercantum bersifat
-                pribadi
-                dan rahasia.</p>
+                ditujukan khusus kepada pengguna terdaftar Kang Pajak.<br> Seluruh informasi yang tercantum bersifat pribadi dan rahasia.</p>
 
             <p>Situs resmi Kang Pajak adalah <a href="https://kangpajak.com"
                     style="color: #4FB5E1;text-decoration: none;font-weight: 600;">https://kangpajak.com</a>. Seluruh
-                komunikasi resmi hanya dikirim melalui platform Kang Pajak dan/atau alamat email dengan
-                domain @kangpajak.com Jika
-                kamu menerima email yang mengatasnamakan Kang Pajak namun berasal dari sumber di luar domain resmi kami,
-                harap abaikan dan
-                laporkan ke tim kami.</p>
+                komunikasi resmi hanya dikirim melalui platform Kang Pajak dan/atau alamat email dengan domain @kangpajak.com. Jika kamu menerima email yang mengatasnamakan Kang Pajak namun berasal dari sumber di luar domain resmi kami, harap abaikan dan laporkan ke tim kami.</p>
 
             <div style="margin: 20px 0;">
                 <table role="presentation" cellspacing="0" cellpadding="0" border="0">
