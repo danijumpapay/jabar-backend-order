@@ -46,6 +46,14 @@ const formatDate = (dateStr: string): string => {
 
 const KANGPAJAK_FLOW: number[] = [7, 3, 4, 5, 12, 6];
 const KANGPAJAK_CANCEL_STATUS = 8;
+const KANGPAJAK_STATUS_NAMES: Record<number, string> = {
+    7: "Menunggu Pembayaran",
+    3: "Proses",
+    4: "Pengurusan di Samsat",
+    5: "Pengataran Dokumen",
+    12: "Dokumen diterima",
+    6: "Selesai"
+};
 
 let orderStatusCache: Record<number, string> | null = null;
 
@@ -66,16 +74,6 @@ const getOrderStatusMap = async (): Promise<Record<number, string>> => {
 const buildStepsFromDB = async (currentStatusId: number): Promise<OrderStatusStep[]> => {
     const statusMap = await getOrderStatusMap();
 
-    // Override/Additional names for Kang Pajak flow
-    const customNames: Record<number, string> = {
-        7: "Menunggu Pembayaran",
-        3: "Proses",
-        4: "Pengurusan di Samsat",
-        5: "Pengataran Dokumen",
-        12: "Dokumen diterima",
-        6: "Selesai"
-    };
-
     if (currentStatusId === KANGPAJAK_CANCEL_STATUS) {
         return [{ title: statusMap[KANGPAJAK_CANCEL_STATUS] || "Dibatalkan", completed: true }];
     }
@@ -87,7 +85,7 @@ const buildStepsFromDB = async (currentStatusId: number): Promise<OrderStatusSte
     const effectiveIndex = currentIndex >= 0 ? currentIndex : 0;
 
     return KANGPAJAK_FLOW.map((statusId, index) => ({
-        title: customNames[statusId] || statusMap[statusId] || `Status ${statusId}`,
+        title: KANGPAJAK_STATUS_NAMES[statusId] || statusMap[statusId] || `Status ${statusId}`,
         completed: index <= effectiveIndex,
     }));
 };
@@ -579,7 +577,7 @@ const orderService = {
         }
 
         const statusMap = await getOrderStatusMap();
-        let statusTitle = statusMap[currentStatusId] || order.orderStatus || "Menunggu Pembayaran";
+        let statusTitle = KANGPAJAK_STATUS_NAMES[currentStatusId] || statusMap[currentStatusId] || order.orderStatus || "Menunggu Pembayaran";
         let cancelReason = "";
 
         if (currentStatusId === 8) {
