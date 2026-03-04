@@ -686,6 +686,9 @@ const orderService = {
             return null;
         }
 
+        const orderRecord = await (transaction.Orders as any).query().where("id", orderId).select("booking_id").first();
+        const bookingId = orderRecord?.booking_id || "";
+
         try {
             await db.transaction(async (trx) => {
                 await trx("transaction.orders")
@@ -707,8 +710,8 @@ const orderService = {
                 }
             });
 
-            logger.info({ orderId }, "Payment simulation successful");
-            return { orderId, status: "PAID" };
+            logger.info({ orderId, bookingId }, "Payment simulation successful");
+            return { orderId, bookingId, status: "PAID" };
         } catch (err) {
             logger.error({ err, orderId }, "Payment simulation transaction failed");
             throw err;
