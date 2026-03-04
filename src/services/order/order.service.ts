@@ -20,13 +20,10 @@ import {
     getVehicleTypeId,
     getVehicleType,
     extractYMD_HI,
-    get25HoursFromNow,
     hardcodedTestingNumbers
 } from "@utils/helpers";
 import flipServices from "@services/flip/flip.services";
 import midtransServices from "@services/midtrans/midtrans.services";
-
-
 
 const formatPhoneNumber = (phone: string): string => {
     if (!phone) return phone;
@@ -47,58 +44,41 @@ const formatDate = (dateStr: string): string => {
     return date.toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
 };
 
-const ORDER_STATUS_STEPS: Record<number, OrderStatusStep[]> = {
+const KANGPAJAK_FLOW: number[] = [7, 3, 5, 6];
+const KANGPAJAK_CANCEL_STATUS = 8;
 
-    7: [
-        { title: "Order Dibuat", completed: true },
-        { title: "Pembayaran Terverifikasi", completed: false },
-        { title: "Proses Dokumen", completed: false },
-        { title: "Pengiriman Dokumen", completed: false },
-        { title: "Selesai", completed: false },
-    ],
-    1: [
-        { title: "Order Dibuat", completed: true },
-        { title: "Pembayaran Terverifikasi", completed: true },
-        { title: "Proses Dokumen", completed: false },
-        { title: "Pengiriman Dokumen", completed: false },
-        { title: "Selesai", completed: false },
-    ],
-    4: [
-        { title: "Order Dibuat", completed: true },
-        { title: "Pembayaran Terverifikasi", completed: true },
-        { title: "Proses Dokumen", completed: true },
-        { title: "Pengiriman Dokumen", completed: false },
-        { title: "Selesai", completed: false },
-    ],
-    5: [
-        { title: "Order Dibuat", completed: true },
-        { title: "Pembayaran Terverifikasi", completed: true },
-        { title: "Proses Dokumen", completed: true },
-        { title: "Pengiriman Dokumen", completed: true },
-        { title: "Selesai", completed: false },
-    ],
-    6: [
-        { title: "Order Dibuat", completed: true },
-        { title: "Pembayaran Terverifikasi", completed: true },
-        { title: "Proses Dokumen", completed: true },
-        { title: "Pengiriman Dokumen", completed: true },
-        { title: "Selesai", completed: true },
-    ],
-    8: [
-        { title: "Order Dibatalkan", completed: true },
-    ],
+let orderStatusCache: Record<number, string> | null = null;
+
+const getOrderStatusMap = async (): Promise<Record<number, string>> => {
+    if (orderStatusCache) return orderStatusCache;
+    try {
+        const rows = await db("common.order_status").select("id", "name");
+        orderStatusCache = rows.reduce((acc: Record<number, string>, row: any) => {
+            acc[row.id] = row.name;
+            return acc;
+        }, {});
+    } catch {
+        orderStatusCache = {};
+    }
+    return orderStatusCache;
 };
 
-const STATUS_MAP_ID: Record<number, string> = {
-    7: "Menunggu Pembayaran",
-    1: "Pembayaran Terverifikasi",
-    4: "Dalam Proses Samsat",
-    5: "Pengembalian Dokumen",
-    6: "Selesai",
-    8: "Dibatalkan",
+const buildStepsFromDB = async (currentStatusId: number): Promise<OrderStatusStep[]> => {
+    const statusMap = await getOrderStatusMap();
+
+    if (currentStatusId === KANGPAJAK_CANCEL_STATUS) {
+        return [{ title: statusMap[KANGPAJAK_CANCEL_STATUS] || "Dibatalkan", completed: true }];
+    }
+
+    const resolvedId = (currentStatusId === 11 || currentStatusId === 1) ? 3 : currentStatusId;
+    const currentIndex = KANGPAJAK_FLOW.indexOf(resolvedId);
+    const effectiveIndex = currentIndex >= 0 ? currentIndex : 0;
+
+    return KANGPAJAK_FLOW.map((statusId, index) => ({
+        title: statusMap[statusId] || `Status ${statusId}`,
+        completed: index <= effectiveIndex,
+    }));
 };
-
-
 
 const orderService = {
 
@@ -402,7 +382,9 @@ const orderService = {
                 flipAmount = 1000;
             }
 
-            const expiredAtStr = get25HoursFromNow();
+            const dateObj = new Date();
+            dateObj.setHours(dateObj.getHours() + 24);
+            const expiredAtStr = dateObj.toISOString();
             let generatePayment: any = { success: false, message: "Metode pembayaran tidak didukung" };
 
             const flipPayload = {
@@ -561,8 +543,8 @@ const orderService = {
         }
     },
 
-    buildStatusSteps(orderStatusId: number): OrderStatusStep[] {
-        return ORDER_STATUS_STEPS[orderStatusId] || ORDER_STATUS_STEPS[7];
+    async buildStatusSteps(orderStatusId: number): Promise<OrderStatusStep[]> {
+        return buildStepsFromDB(orderStatusId);
     },
 
     async getOrderDetail(bookingId: string) {
@@ -570,13 +552,28 @@ const orderService = {
         if (!order) return null;
 
         const serviceName = await this.getServiceName(order.serviceId);
-        const statusTitle = STATUS_MAP_ID[order.orderStatusId] || order.orderStatus || "Menunggu Pembayaran";
+
+        let currentStatusId = order.orderStatusId;
+        const createdAtDate = new Date(order.createdAt);
+        const now = new Date();
+        const diffHours = (now.getTime() - createdAtDate.getTime()) / (1000 * 60 * 60);
+
+        if (currentStatusId === 7 && diffHours > 24) {
+            currentStatusId = 8;
+        }
+
+        if (currentStatusId === 11 || currentStatusId === 1) {
+            currentStatusId = 3;
+        }
+
+        const statusMap = await getOrderStatusMap();
+        const statusTitle = statusMap[currentStatusId] || order.orderStatus || "Menunggu Pembayaran";
 
         return {
             orderId: order.orderId,
             bookingId: order.bookingId,
             status: statusTitle,
-            orderStatusId: order.orderStatusId,
+            orderStatusId: currentStatusId,
             name: order.customerName || "-",
             email: order.email || "-",
             phoneNumber: order.phoneNumber || "-",
@@ -588,7 +585,7 @@ const orderService = {
             paymentMethodName: order.paymentMethodName,
             orderDate: formatDate(order.createdAt),
             createdAt: order.createdAt,
-            steps: this.buildStatusSteps(order.orderStatusId),
+            steps: await this.buildStatusSteps(currentStatusId),
         };
     },
 
@@ -596,12 +593,17 @@ const orderService = {
         const order = await this.getOrderById(orderId);
         if (!order) return null;
 
-        const isPaid = !!order.paidAt;
+        const isPaid = !!order.paidAt || [3, 4, 5, 6].includes(order.orderStatusId);
         const isCancelled = order.orderStatusId === 8;
 
         let status: "PENDING" | "PAID" | "EXPIRED" | "CANCELLED" = "PENDING";
+
+        const createdAtDate = new Date(order.createdAt);
+        const now = new Date();
+        const diffHours = (now.getTime() - createdAtDate.getTime()) / (1000 * 60 * 60);
+
         if (isPaid) status = "PAID";
-        else if (isCancelled) status = "CANCELLED";
+        else if (isCancelled || (order.orderStatusId === 7 && diffHours > 24)) status = "CANCELLED";
 
         return {
             paid: isPaid,
@@ -629,7 +631,8 @@ const orderService = {
     async updateOrderStatus(orderId: string, statusId: number) {
 
         let targetId = orderId;
-        if (orderId.startsWith("UST") || orderId.length < 15) {
+        const isLikelyBookingId = orderId.length < 20 || /^[A-Z]{2,6}\d{5}$/i.test(orderId);
+        if (isLikelyBookingId) {
             const order = await this.getOrderByBookingId(orderId);
             if (order) targetId = order.orderId;
         }
@@ -694,7 +697,7 @@ const orderService = {
                 await trx("transaction.orders")
                     .where("id", orderId)
                     .update({
-                        order_status_id: 1,
+                        order_status_id: 3,
                         paid_at: new Date().toISOString()
                     });
 

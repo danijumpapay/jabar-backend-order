@@ -5,11 +5,37 @@
         "description": "REST API for jabar-backend-order management. Base URL: https://dev-order-api.kangpajak.com",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
+    "auth": {
+        "type": "apikey",
+        "apikey": [
+            {
+                "key": "key",
+                "value": "x-api-key",
+                "type": "string"
+            },
+            {
+                "key": "value",
+                "value": "{{api_key}}",
+                "type": "string"
+            },
+            {
+                "key": "in",
+                "value": "header",
+                "type": "string"
+            }
+        ]
+    },
     "variable": [
         {
             "key": "base_url",
             "value": "https://dev-order-api.kangpajak.com",
             "type": "string"
+        },
+        {
+            "key": "api_key",
+            "value": "",
+            "type": "string",
+            "description": "Set this to your API_KEY value from the server env"
         },
         {
             "key": "order_id",
@@ -196,7 +222,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"name\": \"Budi Santoso\",\n  \"email\": \"budi@email.com\",\n  \"phoneNumber\": \"081234567890\",\n  \"identityNumber\": \"3201234567890001\",\n  \"plateNumber\": \"D1234ABC\",\n  \"chassisNumber\": \"MHFXX123456789\",\n  \"serviceId\": \"1\",\n  \"deliveryFee\": 50000,\n  \"totalAmount\": 350000,\n  \"address\": \"Jl. Sudirman No.1, Bandung\",\n  \"city\": \"Bandung\",\n  \"paymentMethod\": \"BRI\",\n  \"voucherCode\": \"\"\n}",
+                            "raw": "{\n  \"name\": \"Budi Santoso\",\n  \"email\": \"budi@email.com\",\n  \"phoneNumber\": \"081234567890\",\n  \"identityNumber\": \"3201234567890001\",\n  \"plateNumber\": \"D1234ABC\",\n  \"chassisNumber\": \"MHFXX123456789\",\n  \"serviceId\": \"1\",\n  \"deliveryFee\": 50000,\n  \"totalAmount\": 350000,\n  \"address\": \"Jl. Sudirman No.1, Bandung\",\n  \"city\": \"Bandung\",\n  \"paymentMethod\": \"BCA\",\n  \"voucherCode\": \"\"\n}",
                             "options": {
                                 "raw": {
                                     "language": "json"
@@ -327,7 +353,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"actualAmount\": 350000,\n  \"bank\": \"BRI\",\n  \"accountNumber\": \"1234567890\",\n  \"notes\": \"Incorrect service selected\"\n}",
+                            "raw": "{\n  \"actualAmount\": 350000,\n  \"bank\": \"BCA\",\n  \"accountNumber\": \"1234567890\",\n  \"notes\": \"Incorrect service selected\"\n}",
                             "options": {
                                 "raw": {
                                     "language": "json"
@@ -392,7 +418,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"statusId\": 4\n}",
+                            "raw": "{\n  \"statusId\": 3\n}",
                             "options": {
                                 "raw": {
                                     "language": "json"
@@ -412,7 +438,7 @@
                                 "status"
                             ]
                         },
-                        "description": "Status IDs: 7 (Waiting), 1 (Paid), 4 (Samsat), 5 (Delivery), 6 (Done), 8 (Cancel)"
+                        "description": "Status IDs (Kang Pajak): 7 (Menunggu Pembayaran), 3 (Proses), 5 (Pengembalian Dokumen), 6 (Selesai), 8 (Dibatalkan). Status 11 (gateway Midtrans) otomatis dinormalisasi ke 3."
                     }
                 }
             ]

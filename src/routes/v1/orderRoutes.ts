@@ -10,6 +10,7 @@ import {
     updateOrderStatus,
 } from "@controllers/order/order.controller";
 import { uploadDocuments } from "@controllers/document/document.controller";
+import { createOrderRateLimit, statusCheckRateLimit } from "@middlewares/securityMiddleware";
 
 const router = Router();
 
@@ -27,16 +28,16 @@ const upload = multer({
 });
 
 const devOnly = (req: any, res: any, next: any) => {
-    if (process.env.NODE_ENV === "production" && !req.headers["x-dev-secret"]) {
-        return res.status(403).json({ success: false, message: "Akses ditolak pada mode produksi" });
+    const devSecret = process.env.DEV_SECRET || "DEV_SECRET_KEY_HERE";
+    if (process.env.NODE_ENV === "production" && req.headers["x-dev-secret"] !== devSecret) {
+        return res.status(403).json({ success: false, message: "Access denied in production mode" });
     }
     next();
 };
 
-
-router.post("/", createOrder);
-router.get("/:bookingId", getOrderByBookingId);
-router.get("/:orderId/payment-status", getPaymentStatus);
+router.post("/", createOrderRateLimit, createOrder);
+router.get("/:bookingId", statusCheckRateLimit, getOrderByBookingId);
+router.get("/:orderId/payment-status", statusCheckRateLimit, getPaymentStatus);
 router.post("/:orderId/simulate-payment", devOnly, simulatePayment);
 router.patch("/:orderId/status", devOnly, updateOrderStatus);
 router.patch("/:orderId/cancel", cancelOrder);
