@@ -2,13 +2,13 @@
     "info": {
         "name": "Jabar Backend Order API",
         "_postman_id": "jabar-backend-order-v1",
-        "description": "REST API for jabar-backend-order management. Base URL: http://localhost:3001",
+        "description": "REST API for jabar-backend-order management. Base URL: https://dev-order-api.kangpajak.com",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "variable": [
         {
             "key": "base_url",
-            "value": "http://localhost:3001",
+            "value": "https://dev-order-api.kangpajak.com",
             "type": "string"
         },
         {
