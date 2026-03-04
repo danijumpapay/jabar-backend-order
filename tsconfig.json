@@ -21,7 +21,6 @@
       "@dataTypes/*": ["src/dataTypes/*"],
       "@services/*": ["src/services/*"]
     },
-    "types": ["node", "objection"]
   },
   "include": ["**/*.ts", "src/types/**/*.d.ts"],
   "exclude": ["node_modules", "dist"]

@@ -67,7 +67,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
 };
 
 
-export const getOrderByBookingId = async (req: Request, res: Response): Promise<void> => {
+export const getOrderByBookingId = async (req: any, res: Response): Promise<void> => {
     try {
         const { bookingId } = req.params;
 
@@ -91,7 +91,7 @@ export const getOrderByBookingId = async (req: Request, res: Response): Promise<
 };
 
 
-export const getPaymentStatus = async (req: Request, res: Response): Promise<void> => {
+export const getPaymentStatus = async (req: any, res: Response): Promise<void> => {
     try {
         const { orderId } = req.params;
 
@@ -110,7 +110,7 @@ export const getPaymentStatus = async (req: Request, res: Response): Promise<voi
 };
 
 
-export const cancelOrder = async (req: Request, res: Response): Promise<void> => {
+export const cancelOrder = async (req: any, res: Response): Promise<void> => {
     try {
         const { orderId } = req.params;
 
@@ -133,7 +133,7 @@ export const cancelOrder = async (req: Request, res: Response): Promise<void> =>
 };
 
 
-export const createRefund = async (req: Request, res: Response): Promise<void> => {
+export const createRefund = async (req: any, res: Response): Promise<void> => {
     try {
         const { orderId } = req.params;
 
@@ -161,7 +161,7 @@ export const createRefund = async (req: Request, res: Response): Promise<void> =
 };
 
 
-export const simulatePayment = async (req: Request, res: Response): Promise<void> => {
+export const simulatePayment = async (req: any, res: Response): Promise<void> => {
     try {
         const { orderId } = req.params;
         req.log?.info({ orderId }, "Simulating payment from controller");
@@ -178,7 +178,7 @@ export const simulatePayment = async (req: Request, res: Response): Promise<void
 };
 
 
-export const updateOrderStatus = async (req: Request, res: Response): Promise<void> => {
+export const updateOrderStatus = async (req: any, res: Response): Promise<void> => {
     try {
         const { orderId } = req.params;
         const { statusId } = req.body;
