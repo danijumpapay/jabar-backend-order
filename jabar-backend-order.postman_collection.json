@@ -6,21 +6,11 @@
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "auth": {
-        "type": "apikey",
-        "apikey": [
+        "type": "bearer",
+        "bearer": [
             {
-                "key": "key",
-                "value": "x-api-key",
-                "type": "string"
-            },
-            {
-                "key": "value",
-                "value": "{{api_key}}",
-                "type": "string"
-            },
-            {
-                "key": "in",
-                "value": "header",
+                "key": "token",
+                "value": "{{access_token}}",
                 "type": "string"
             }
         ]
@@ -32,10 +22,10 @@
             "type": "string"
         },
         {
-            "key": "api_key",
+            "key": "access_token",
             "value": "",
             "type": "string",
-            "description": "Set this to your API_KEY value from the server env"
+            "description": "Auto-filled by Get Token request"
         },
         {
             "key": "order_id",
@@ -47,13 +37,59 @@
             "key": "booking_id",
             "value": "",
             "type": "string",
-            "description": "bookingId from POST /orders response (e.g. KPyyyyMMddXXXX)"
+            "description": "bookingId from POST /orders response"
         }
     ],
     "item": [
         {
+            "name": "Auth",
+            "item": [
+                {
+                    "name": "Get Token",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var json = pm.response.json();",
+                                    "if (json.success && json.token) {",
+                                    "  pm.collectionVariables.set('access_token', json.token);",
+                                    "  console.log('Token saved, expires in ' + json.expiresIn + 's');",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/auth/token",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "auth",
+                                "token"
+                            ]
+                        },
+                        "description": "Run this first. Token (30 min) auto-saved to {{access_token}} and used in all requests."
+                    }
+                }
+            ]
+        },
+        {
             "name": "Health Check",
             "request": {
+                "auth": {
+                    "type": "noauth"
+                },
                 "method": "GET",
                 "header": [],
                 "url": {
