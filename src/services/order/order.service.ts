@@ -387,7 +387,7 @@ const orderService = {
 
 
             const totalRecalculated = serviceFeesForm.reduce((sum: number, fee: any) => sum + fee.value, 0);
-            const finalPrice = totalRecalculated;
+            const finalPrice = totalRecalculated > 0 ? totalRecalculated : Number(data.totalAmount);
             const EWalletTax = 0;
 
             await Promise.all([
