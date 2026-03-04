@@ -9,15 +9,6 @@ import { logger, Logger } from "@config/logger";
 import { globalRateLimit, requireDynamicToken } from "@middlewares/securityMiddleware";
 dotenv.config();
 
-declare global {
-  namespace Express {
-    interface Request {
-      log?: Logger;
-    }
-  }
-}
-
-
 const app: Application = express();
 const port = process.env.PORT || 3001;
 
@@ -45,7 +36,7 @@ app.use(express.urlencoded({ extended: false, limit: "2mb" }));
 app.use(globalRateLimit);
 app.use(requireDynamicToken);
 
-app.use((req: any, _res: Response, next) => {
+app.use((req: Request, _res: Response, next) => {
   req.log = logger.child({
     method: req.method,
     path: req.url,
