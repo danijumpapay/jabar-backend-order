@@ -572,7 +572,7 @@ const orderService = {
 
         if (currentStatusId === 8) {
             statusTitle = "Dibatalkan";
-            cancelReason = "Pesanan dibatalkan otomatis karena pembayaran tidak diterima dalam batas waktu yang ditentukan.";
+            cancelReason = "Pesanan dibatalkan otomatis karena pembayaran tidak diterima dalam batas waktu yang ditentukan. Silakan buat pesanan baru jika ingin melanjutkan.";
         }
 
         return {
