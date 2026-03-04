@@ -24,6 +24,7 @@ import {
 } from "@utils/helpers";
 import flipServices from "@services/flip/flip.services";
 import midtransServices from "@services/midtrans/midtrans.services";
+import { emailService } from "@services/email/email.service";
 
 const formatPhoneNumber = (phone: string): string => {
     if (!phone) return phone;
@@ -483,6 +484,14 @@ const orderService = {
 
             logger.info({ orderId, bookingId, paymentDetails }, "Order created successfully aligned with Bot and Atomized");
 
+            // Send order confirmation email
+            this.getOrderDetail(bookingId).then((orderDetail) => {
+                if (orderDetail && orderDetail.email) {
+                    emailService.sendOrderConfirmation(orderDetail.email, orderDetail.name, orderDetail, "Konfirmasi Pesanan JumpaPay")
+                        .catch(err => logger.error({ err, orderId }, "Error sending order confirmation email"));
+                }
+            }).catch(err => logger.error({ err, orderId }, "Error fetching order detail for notification"));
+
             return {
                 orderId,
                 bookingId,
@@ -506,6 +515,7 @@ const orderService = {
                 "order_details.name as customerName",
                 "orders.phone as phoneNumber",
                 "order_details.plate_number as plateNumber",
+                "order_details.id as orderDetailId",
                 "order_details.service_id as serviceId",
                 "payments.payment_details as paymentDetails",
                 "payments.payment_method_name as paymentMethodName"
@@ -532,6 +542,7 @@ const orderService = {
                 "order_details.name as customerName",
                 "orders.phone as phoneNumber",
                 "order_details.plate_number as plateNumber",
+                "order_details.id as orderDetailId",
                 "order_details.service_id as serviceId",
                 "payments.payment_details as paymentDetails",
                 "payments.payment_method_name as paymentMethodName"
@@ -585,6 +596,18 @@ const orderService = {
             cancelReason = "Pesanan dibatalkan otomatis karena pembayaran tidak diterima dalam batas waktu yang ditentukan. Silakan buat pesanan baru jika ingin melanjutkan.";
         }
 
+        let vehicleType = "-";
+        try {
+            const formData = await transaction.OrderFormDatas.query()
+                .where("order_detail_id", order.orderDetailId)
+                .first() as any;
+            if (formData && formData.form_data && formData.form_data.vehicle) {
+                vehicleType = formData.form_data.vehicle.vehicleType || "-";
+            }
+        } catch (err) {
+            logger.error({ err, orderId: order.orderId }, "Error fetching vehicle type for order detail");
+        }
+
         return {
             orderId: order.orderId,
             bookingId: order.bookingId,
@@ -598,6 +621,7 @@ const orderService = {
             serviceName: serviceName,
             totalAmount: formatCurrency(Number(order.price)),
             finalTotal: Number(order.price),
+            vehicleType,
             paymentDetails: order.paymentDetails,
             paymentMethodName: order.paymentMethodName,
             orderDate: formatDate(order.createdAt),
@@ -731,6 +755,15 @@ const orderService = {
             });
 
             logger.info({ orderId, bookingId }, "Payment simulation successful");
+
+            // Send notification email
+            this.getOrderDetail(bookingId).then((orderDetail) => {
+                if (orderDetail && orderDetail.email) {
+                    emailService.sendOrderConfirmation(orderDetail.email, orderDetail.name, orderDetail)
+                        .catch(err => logger.error({ err, orderId }, "Error sending payment confirmation email"));
+                }
+            }).catch(err => logger.error({ err, orderId }, "Error fetching order detail for notification"));
+
             return { orderId, bookingId, status: "PAID" };
         } catch (err) {
             logger.error({ err, orderId }, "Payment simulation transaction failed");
