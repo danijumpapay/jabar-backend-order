@@ -6,7 +6,7 @@ import routesV1 from "./src/routes/v1/index";
 import { initializeModels } from "@jumpapay/jumpapay-models";
 import knex from "@config/connection";
 import { logger, Logger } from "@config/logger";
-import { globalRateLimit, requireApiKey } from "@middlewares/securityMiddleware";
+import { globalRateLimit, requireDynamicToken } from "@middlewares/securityMiddleware";
 dotenv.config();
 
 
@@ -35,7 +35,7 @@ app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: false, limit: "2mb" }));
 
 app.use(globalRateLimit);
-app.use(requireApiKey);
+app.use(requireDynamicToken);
 
 app.use((req, _res, next) => {
   req.log = logger.child({

@@ -1,5 +1,6 @@
 import rateLimit from "express-rate-limit";
 import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
 
 const rateLimitResponse = (_req: Request, res: Response) => {
     res.status(429).json({
@@ -32,16 +33,32 @@ export const statusCheckRateLimit = rateLimit({
     handler: rateLimitResponse,
 });
 
-export const requireApiKey = (req: Request, res: Response, next: NextFunction) => {
-    const excluded = ["/"];
-    if (excluded.includes(req.path)) return next();
+export const tokenRateLimit = rateLimit({
+    windowMs: 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: rateLimitResponse,
+});
 
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) return next();
+export const requireDynamicToken = (req: Request, res: Response, next: NextFunction) => {
+    const excluded = ["/", "/api/v1/auth/token"];
+    if (excluded.some(p => req.path === p || req.originalUrl === p)) return next();
 
-    const provided = req.headers["x-api-key"];
-    if (!provided || provided !== apiKey) {
-        return res.status(401).json({ success: false, message: "Invalid or missing API key." });
+    const tokenSecret = process.env.TOKEN_SECRET || "";
+    if (!tokenSecret) return next();
+
+    const authHeader = req.headers["authorization"];
+    const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
+    if (!token) {
+        return res.status(401).json({ success: false, message: "Authorization token required." });
     }
-    next();
+
+    try {
+        jwt.verify(token, tokenSecret);
+        next();
+    } catch {
+        return res.status(401).json({ success: false, message: "Token invalid or expired." });
+    }
 };
