@@ -44,7 +44,7 @@ const formatDate = (dateStr: string): string => {
     return date.toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
 };
 
-const KANGPAJAK_FLOW: number[] = [7, 3, 5, 6];
+const KANGPAJAK_FLOW: number[] = [7, 3, 4, 5, 12, 6];
 const KANGPAJAK_CANCEL_STATUS = 8;
 
 let orderStatusCache: Record<number, string> | null = null;
@@ -66,16 +66,28 @@ const getOrderStatusMap = async (): Promise<Record<number, string>> => {
 const buildStepsFromDB = async (currentStatusId: number): Promise<OrderStatusStep[]> => {
     const statusMap = await getOrderStatusMap();
 
+    // Override/Additional names for Kang Pajak flow
+    const customNames: Record<number, string> = {
+        7: "Menunggu Pembayaran",
+        3: "Proses",
+        4: "Pengurusan di Samsat",
+        5: "Pengataran Dokumen",
+        12: "Dokumen diterima",
+        6: "Selesai"
+    };
+
     if (currentStatusId === KANGPAJAK_CANCEL_STATUS) {
         return [{ title: statusMap[KANGPAJAK_CANCEL_STATUS] || "Dibatalkan", completed: true }];
     }
 
     const resolvedId = (currentStatusId === 11 || currentStatusId === 1) ? 3 : currentStatusId;
+
+    // Determine the furthest completed step
     const currentIndex = KANGPAJAK_FLOW.indexOf(resolvedId);
     const effectiveIndex = currentIndex >= 0 ? currentIndex : 0;
 
     return KANGPAJAK_FLOW.map((statusId, index) => ({
-        title: statusMap[statusId] || `Status ${statusId}`,
+        title: customNames[statusId] || statusMap[statusId] || `Status ${statusId}`,
         completed: index <= effectiveIndex,
     }));
 };
