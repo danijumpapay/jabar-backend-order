@@ -362,7 +362,7 @@ const orderService = {
             }
 
 
-            const paymentMethodName = data.paymentMethod || "QRIS";
+            const paymentMethodName = data.paymentMethod || "BCA";
             const paymentMethodType = "DIGITAL_WALLET";
 
 
