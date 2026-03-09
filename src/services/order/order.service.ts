@@ -171,12 +171,19 @@ const orderService = {
                         calculatedValue = sf.value || 0;
                     }
 
+                    let feeGroupName = sf.fee_group_name;
+                    if (sf.order_fee_group === 1) {
+                        feeGroupName = "Biaya Jasa Jumpapay";
+                    } else if (sf.order_fee_group === 2) {
+                        feeGroupName = "Biaya Pajak";
+                    }
+
                     return {
                         order_detail_id: orderDetailId,
                         fee_name: sf.name,
                         order_fee_name: sf.order_fee_name,
                         order_fee_group: sf.order_fee_group,
-                        fee_group_name: sf.fee_group_name,
+                        fee_group_name: feeGroupName,
                         zero_placeholder: sf.zero_placeholder,
                         value: Number(calculatedValue)
                     };
@@ -295,30 +302,10 @@ const orderService = {
                 order_detail_id: orderDetailId,
                 form_token: formToken,
                 form_data: {
-                    customer: {
-                        name: data.name,
-                        email: data.email,
-                        phoneNumber: formattedPhoneNumber,
-                        identityNumber: data.identityNumber,
-                    },
-                    vehicle: {
-                        plateNumber: data.plateNumber,
-                        chassisNumber: data.chassisNumber,
-                        vehicleType: vehicleTypeName,
-                        ...taxData
-                    },
-                    logistics: {
-                        address: samsatAddress,
-                        city: data.city,
-                        addressNote: data.addressNote,
-                        deliveryFee: data.deliveryFee,
-                    },
-                    payment: {
-                        method: data.paymentMethod,
-                        totalAmount: data.totalAmount,
-                        voucherCode: data.voucherCode,
-                        promoId: data.promoId,
-                    }
+                    ...data,
+                    ...taxData,
+                    samsatRegion: taxData.WILAYAH_SAMSAT || "",
+                    pickupMethod: data.isSamsatPickup ? "AMBIL_SENDIRI" : "DELIVERY"
                 },
             } as any);
 
@@ -603,8 +590,8 @@ const orderService = {
             const formData = await transaction.OrderFormDatas.query()
                 .where("order_detail_id", order.orderDetailId)
                 .first() as any;
-            if (formData && formData.form_data && formData.form_data.vehicle) {
-                vehicleType = formData.form_data.vehicle.vehicleType || "-";
+            if (formData && formData.form_data) {
+                vehicleType = formData.form_data.vehicleType || (formData.form_data.vehicle && formData.form_data.vehicle.vehicleType) || "-";
             }
         } catch (err) {
             logger.error({ err, orderId: order.orderId }, "Error fetching vehicle type for order detail");
