@@ -177,7 +177,7 @@ const orderService = {
                 order_fee_name: tf.order,
                 order_fee_group: tf.group,
                 fee_group_name: tf.groupName,
-                zero_placeholder: false,
+                zero_placeholder: null,
                 value: tf.value
             })).filter(f => f.value > 0 || f.fee_name.includes("Tertunggak") || f.fee_name.includes("(SKP)"));
 
@@ -194,7 +194,6 @@ const orderService = {
                         calculatedValue = sf.value || 0;
                     }
 
-                    // Align group naming and ordering for dashboard
                     let feeGroupName = sf.jumpapay_fee_group_name || sf.fee_group_name;
                     let feeGroupOrder = sf.order_fee_group;
 
@@ -212,7 +211,7 @@ const orderService = {
                         order_fee_name: sf.order_fee_name,
                         order_fee_group: feeGroupOrder,
                         fee_group_name: feeGroupName,
-                        zero_placeholder: sf.zero_placeholder,
+                        zero_placeholder: sf.zero_placeholder || null,
                         value: Number(calculatedValue)
                     };
                 })
