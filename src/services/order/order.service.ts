@@ -173,9 +173,11 @@ const orderService = {
 
                     let feeGroupName = sf.fee_group_name;
                     if (sf.order_fee_group === 1) {
-                        feeGroupName = "Biaya Jasa Jumpapay";
+                        feeGroupName = "Biaya Jasa JumpaPay";
                     } else if (sf.order_fee_group === 2) {
                         feeGroupName = "Biaya Pajak";
+                    } else if (sf.order_fee_group === 4) {
+                        feeGroupName = "Biaya Jasa JumpaPay";
                     }
 
                     return {
@@ -302,10 +304,13 @@ const orderService = {
                 order_detail_id: orderDetailId,
                 form_token: formToken,
                 form_data: {
-                    ...data,
-                    ...taxData,
-                    samsatRegion: taxData.WILAYAH_SAMSAT || "",
-                    pickupMethod: data.isSamsatPickup ? "AMBIL_SENDIRI" : "DELIVERY"
+                    fullName: data.name,
+                    flowToken: formToken,
+                    pkbTertagih: String(parseIDNumber(taxData.PKB_POKOK) || "0"),
+                    jenisKendaraan: vehicleTypeName === "Motor" ? "MOTOR" : "MOBIL",
+                    isStnkEqualsKtp: data.isStnkEqualsKtp ? "1" : "0",
+                    masaBerlakuPajak: taxData.TGL_AKHIR_PAJAK || "",
+                    nomorPlatKendaraan: data.plateNumber
                 },
             } as any);
 
@@ -591,7 +596,7 @@ const orderService = {
                 .where("order_detail_id", order.orderDetailId)
                 .first() as any;
             if (formData && formData.form_data) {
-                vehicleType = formData.form_data.vehicleType || (formData.form_data.vehicle && formData.form_data.vehicle.vehicleType) || "-";
+                vehicleType = formData.form_data.jenis_kendaraan || formData.form_data.vehicleType || (formData.form_data.vehicle && formData.form_data.vehicle.vehicleType) || "-";
             }
         } catch (err) {
             logger.error({ err, orderId: order.orderId }, "Error fetching vehicle type for order detail");

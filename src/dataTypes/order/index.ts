@@ -20,6 +20,8 @@ export interface CreateOrderRequest {
     latitude?: number;
     longitude?: number;
     isSamsatPickup?: boolean;
+    isStnkEqualsKtp?: boolean;
+    isStnkEqualsBpkb?: boolean;
     taxData?: {
         PKB_POKOK: string;
         PKB_DENDA: string;
