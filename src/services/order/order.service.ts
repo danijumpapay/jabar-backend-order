@@ -99,9 +99,8 @@ const orderService = {
             const [selectedSvc, serviceAliasRow, serviceFees, orderCountRow] = await Promise.all([
                 service.Services.query(trx).where("id", Number(data.serviceId)).first() as any,
                 service.MvServices.query(trx).where("id", Number(data.serviceId)).select("alias").first() as any,
-                company.VCompanyFeeServices.query(trx)
-                    .where("service_id", Number(data.serviceId))
-                    .andWhere("company_id", companyId) as any,
+                common.VJumpapayFeeServices.query(trx)
+                    .where("service_id", Number(data.serviceId)) as any,
                 service.VServiceOrderCounts.query(trx).where("id", Number(data.serviceId)).first() as any
             ]);
 
@@ -171,7 +170,7 @@ const orderService = {
                         calculatedValue = sf.value || 0;
                     }
 
-                    let feeGroupName = sf.fee_group_name;
+                    let feeGroupName = sf.jumpapay_fee_group_name || sf.fee_group_name;
                     if (sf.order_fee_group === 1) {
                         feeGroupName = "Biaya Jasa JumpaPay";
                     } else if (sf.order_fee_group === 2) {
@@ -190,6 +189,7 @@ const orderService = {
                         value: Number(calculatedValue)
                     };
                 })
+                .filter((f: any) => f.fee_name !== "JumpaPay Fee")
                 : [];
 
 
@@ -308,9 +308,9 @@ const orderService = {
                     flowToken: formToken,
                     pkbTertagih: String(parseIDNumber(taxData.PKB_POKOK) || "0"),
                     jenisKendaraan: vehicleTypeName === "Motor" ? "MOTOR" : "MOBIL",
-                    isStnkEqualsKtp: data.isStnkEqualsKtp ? "1" : "0",
+                    isStnkEqualsKtp: "1",
                     masaBerlakuPajak: taxData.TGL_AKHIR_PAJAK || "",
-                    nomorPlatKendaraan: data.plateNumber
+                    nomorPlatKendaraan: `${plateParts?.prefix || ""} ${plateParts?.number || ""} ${plateParts?.serial || ""}`.trim()
                 },
             } as any);
 
