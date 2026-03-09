@@ -181,49 +181,9 @@ const orderService = {
                 value: tf.value
             })).filter(f => f.value > 0 || f.fee_name.includes("Tertunggak") || f.fee_name.includes("(SKP)"));
 
-            const serviceFeesFormRaw = serviceFees.length > 0
-                ? serviceFees.map((sf: any) => {
-                    let calculatedValue = 0;
-                    if (sf.type === "FORMULA" && sf.formula) {
-                        try {
-                            calculatedValue = useFormula(formulaVariables, sf.formula)();
-                        } catch (err) {
-                            logger.error({ err, formula: sf.formula }, "Formula processing error");
-                        }
-                    } else {
-                        calculatedValue = sf.value || 0;
-                    }
+            const serviceFeesFormRaw = [];
 
-                    let feeGroupName = sf.jumpapay_fee_group_name || sf.fee_group_name;
-                    let feeGroupOrder = sf.order_fee_group;
-
-                    if (feeGroupName?.toLowerCase().includes("pajak")) {
-                        feeGroupName = "Biaya Pajak";
-                        feeGroupOrder = 1;
-                    } else if (feeGroupName?.toLowerCase().includes("jasa leap") || feeGroupName?.toLowerCase().includes("jasa jumpapay")) {
-                        feeGroupName = "Biaya Jasa JumpaPay";
-                        feeGroupOrder = 2;
-                    }
-
-                    let finalFeeName = sf.name;
-                    if (finalFeeName === "JumpaPay Fee" || finalFeeName.includes("JumpaPay Fee")) {
-                        finalFeeName = "Biaya Admin";
-                    }
-
-                    return {
-                        order_detail_id: orderDetailId,
-                        fee_name: finalFeeName,
-                        order_fee_name: sf.order_fee_name,
-                        order_fee_group: feeGroupOrder,
-                        fee_group_name: feeGroupName,
-                        zero_placeholder: sf.zero_placeholder || null,
-                        value: Number(calculatedValue)
-                    };
-                })
-                : [];
-
-            const hasOngkir = serviceFeesFormRaw.some((f: any) => f.fee_name.toLowerCase().includes("ongkir") || f.fee_name.toLowerCase().includes("pickup"));
-            if (!hasOngkir) {
+            if (data.deliveryFee > 0) {
                 serviceFeesFormRaw.push({
                     order_detail_id: orderDetailId,
                     fee_name: "Ongkir",
@@ -231,33 +191,21 @@ const orderService = {
                     order_fee_group: 2,
                     fee_group_name: "Biaya Jasa JumpaPay",
                     zero_placeholder: null,
-                    value: Number(data.deliveryFee) || 0
-                });
-            } else {
-                serviceFeesFormRaw.forEach((f: any) => {
-                    if (f.fee_name.toLowerCase().includes("ongkir") || f.fee_name.toLowerCase().includes("pickup")) {
-                        if (f.value === 0 && data.deliveryFee > 0) {
-                            f.value = Number(data.deliveryFee);
-                        }
-                    }
+                    value: Number(data.deliveryFee)
                 });
             }
 
-            const hasAdminFee = serviceFeesFormRaw.some((f: any) => f.fee_name === "Biaya Admin");
-            if (!hasAdminFee) {
-                serviceFeesFormRaw.push({
-                    order_detail_id: orderDetailId,
-                    fee_name: "Biaya Admin",
-                    order_fee_name: 98,
-                    order_fee_group: 2,
-                    fee_group_name: "Biaya Jasa JumpaPay",
-                    zero_placeholder: null,
-                    value: 10000
-                });
-            }
+            serviceFeesFormRaw.push({
+                order_detail_id: orderDetailId,
+                fee_name: "Biaya Admin",
+                order_fee_name: 98,
+                order_fee_group: 2,
+                fee_group_name: "Biaya Jasa JumpaPay",
+                zero_placeholder: null,
+                value: 10000
+            });
 
             const serviceFeesForm = [...manualFeeEntries, ...serviceFeesFormRaw];
-
 
             const plateParts = extractPlate(data.plateNumber);
             const plateRow = await common.Plates.query(trx).where("name", plateParts?.prefix || "D").first() as any;
@@ -370,13 +318,14 @@ const orderService = {
                 order_detail_id: orderDetailId,
                 form_token: formToken,
                 form_data: {
-                    fullName: data.name,
-                    flowToken: formToken,
-                    pkbTertagih: String(parseIDNumber(taxData.PKB_POKOK) || "0"),
-                    jenisKendaraan: vehicleTypeName === "Motor" ? "MOTOR" : "MOBIL",
-                    isStnkEqualsKtp: "1",
-                    masaBerlakuPajak: taxData.TGL_AKHIR_PAJAK || "",
-                    nomorPlatKendaraan: `${plateParts?.prefix || ""} ${plateParts?.number || ""} ${plateParts?.serial || ""}`.trim()
+                    booking_id: bookingId,
+                    full_name: data.name,
+                    flow_token: formToken,
+                    pkb_tertagih: String(parseIDNumber(taxData.PKB_POKOK) + parseIDNumber(taxData.PKB_DENDA)),
+                    jenis_kendaraan: vehicleTypeName,
+                    is_stnk_equals_ktp: "1",
+                    masa_berlaku_pajak: taxData.TGL_AKHIR_PAJAK || "",
+                    nomor_plat_kendaraan: `${plateParts?.prefix || ""} ${plateParts?.number || ""} ${plateParts?.serial || ""}`.trim()
                 },
             } as any);
 
@@ -431,10 +380,8 @@ const orderService = {
 
             const paymentMethodName = data.paymentMethod || "BCA";
             const paymentMethodType = "DIGITAL_WALLET";
-
-
-            const totalRecalculated = serviceFeesForm.reduce((sum: number, fee: any) => sum + fee.value, 0);
-            const finalPrice = totalRecalculated > 0 ? totalRecalculated : Number(data.totalAmount);
+            const totalRecalculated = data.totalAmount;
+            const finalPrice = Number(totalRecalculated);
             const EWalletTax = 0;
 
             await Promise.all([
@@ -657,35 +604,155 @@ const orderService = {
         }
 
         let vehicleType = "-";
+        let formDataRecord: any = null;
         try {
-            const formData = await transaction.OrderFormDatas.query()
+            formDataRecord = await transaction.OrderFormDatas.query()
                 .where("order_detail_id", order.orderDetailId)
                 .first() as any;
-            if (formData && formData.form_data) {
-                vehicleType = formData.form_data.jenis_kendaraan || formData.form_data.vehicleType || (formData.form_data.vehicle && formData.form_data.vehicle.vehicleType) || "-";
+            
+            if (formDataRecord) {
+                const fd = formDataRecord.form_data || {};
+                const swd = Number(fd.swd_pokok || 0);
+                
+                if (swd === 35000) {
+                    vehicleType = "MOTOR";
+                } else if (swd === 143000) {
+                    vehicleType = "MOBIL";
+                } else {
+                    vehicleType = fd.jenis_kendaraan || fd.vehicleType || (fd.vehicle && fd.vehicle.vehicleType) || fd.service_name || "-";
+                }
             }
         } catch (err) {
             logger.error({ err, orderId: order.orderId }, "Error fetching vehicle type for order detail");
         }
 
+        const orderId = order.orderId;
+        let payments = await transaction.Payments.query()
+            .join("transaction.payment_items", "payments.id", "transaction.payment_items.payment_id")
+            .where("transaction.payment_items.order_id", orderId)
+            .select("payments.*") as any[];
+        
+        if (order.paidAt && payments.length === 0) {
+            payments = [{
+                id: "simulated-" + orderId,
+                payment_method_name: order.paymentMethodName || "Simulasi Pembayaran",
+                payment_method_type: "MANUAL",
+                status: "PAID",
+                paid_at: order.paidAt,
+                amount: order.price,
+                payment_details: { type: "SIMULATED" }
+            }];
+        }
+        
+        let paymentMethodName = order.paymentMethodName || "-";
+        if (paymentMethodName === "-" && payments.length > 0) {
+            paymentMethodName = payments[0].payment_method_name || "-";
+        }
+        if (paymentMethodName === "-" && order.paidAt) {
+            paymentMethodName = "Simulasi Pembayaran";
+        }
+
+        const orderDetailFees = await transaction.OrderDetailFees.query()
+            .where("order_detail_id", order.orderDetailId)
+            .orderBy("order_fee_group", "asc")
+            .orderBy("order_fee_name", "asc") as any[];
+
+        const formData = await transaction.OrderFormDatas.query()
+            .where("order_detail_id", order.orderDetailId)
+            .first() as any;
+
+        const docs = await transaction.OrderDetailDocuments.query()
+            .where("order_detail_id", order.orderDetailId) as any[];
+
+        const orderAddress = await transaction.OrderAddresses.query()
+            .where("order_id", orderId)
+            .first() as any;
+
+        const biayaPajak = orderDetailFees
+            .filter(f => f.order_fee_group === 1)
+            .map(f => ({ label: f.fee_name, value: formatCurrency(f.value) }));
+        
+        const subTotalBiayaPajak = formatCurrency(biayaPajak.reduce((acc, curr) => acc + parseIDNumber(curr.value), 0));
+
+        const biayaJasa = orderDetailFees
+            .filter(f => f.order_fee_group >= 2 && f.order_fee_group < 100)
+            .map(f => ({ label: f.fee_name, value: formatCurrency(f.value) }));
+        
+        const subTotalBiayaJasa = formatCurrency(biayaJasa.reduce((acc, curr) => acc + parseIDNumber(curr.value), 0));
+
+        const pkbTerakhir = formData?.form_data?.pkb_tertagih || "0";
+        const masaBerlakuPajak = formData?.form_data?.masa_berlaku_pajak || "-";
+
         return {
-            orderId: order.orderId,
+            id: order.orderId,
+            tanggal: formatDate(order.createdAt),
+            nama: order.customerName || "-",
+            name: order.customerName || "-",
+            layanan: serviceName,
+            no_hp: order.phoneNumber || "-",
+            kota: orderAddress?.city_name || "-",
+            status_pembayaran: order.paidAt ? "Sudah Bayar" : "Belum Bayar",
+            platform: "WEB - JABAR",
+            harga: formatCurrency(Number(order.price)),
             bookingId: order.bookingId,
+            serviceName: serviceName,
+            plateNumber: order.plateNumber || "-",
+            vehicleType: vehicleType,
+            totalAmount: formatCurrency(Number(order.price)),
+            paymentMethodName: paymentMethodName,
+            orderDate: formatDate(order.createdAt),
             status: statusTitle,
+            payments: payments.map(p => ({
+                id: p.id,
+                paymentMethodName: p.payment_method_name,
+                paymentMethodType: p.payment_method_type,
+                status: p.status,
+                paidAt: p.paid_at || order.paidAt,
+                amount: p.amount,
+                paymentDetails: p.payment_details
+            })),
+            detail: {
+                metode_pembayaran: paymentMethodName,
+                alamat_penjemputan: {
+                    kota: orderAddress?.city_name || "-",
+                    detail: orderAddress?.raw_address || "-",
+                    maps: (orderAddress?.latitude && orderAddress?.longitude) 
+                        ? `https://maps.google.com/?q=${orderAddress.latitude},${orderAddress.longitude}` 
+                        : "-",
+                },
+                status_detail: {
+                    status: statusTitle,
+                    status_pembayaran_detail: order.paidAt ? "SUDAH DIBAYAR" : "MENUNGGU PEMBAYARAN",
+                    kurir: "-",
+                    serah_terima_dokumen: "BELUM DI TERIMA",
+                },
+                perpanjangan_pajak: {
+                    jenis_kendaraan: vehicleType,
+                    nomor_plat: order.plateNumber || "-",
+                    pkb_terakhir: formatCurrency(Number(pkbTerakhir || 0)), 
+                    masa_berlaku_pkb: masaBerlakuPajak,
+                    total_harga: formatCurrency(Number(order.price)),
+                    biaya_jasa: subTotalBiayaJasa,
+                },
+                form_data: formDataRecord ? {
+                    id: formDataRecord.id,
+                    form_token: formDataRecord.form_token,
+                    form_data: formDataRecord.form_data
+                } : null,
+                dokumen_order: docs.map(d => ({
+                    label: d.type || "Dokumen",
+                    url: d.document
+                })),
+                rincian_pembayaran: {
+                    biaya_pajak: biayaPajak,
+                    sub_total_biaya_pajak: subTotalBiayaPajak,
+                    biaya_jasa_jumpapay: biayaJasa,
+                    sub_total_biaya_jasa_jumpapay: subTotalBiayaJasa,
+                }
+            },
             cancelReason,
             orderStatusId: currentStatusId,
-            name: order.customerName || "-",
             email: order.email || "-",
-            phoneNumber: order.phoneNumber || "-",
-            plateNumber: order.plateNumber || "-",
-            serviceName: serviceName,
-            totalAmount: formatCurrency(Number(order.price)),
-            finalTotal: Number(order.price),
-            vehicleType,
-            paymentDetails: order.paymentDetails,
-            paymentMethodName: order.paymentMethodName,
-            orderDate: formatDate(order.createdAt),
-            createdAt: order.createdAt,
             steps: await this.buildStatusSteps(currentStatusId),
         };
     },
@@ -810,7 +877,10 @@ const orderService = {
                 if (pIds.length > 0) {
                     await trx("transaction.payments")
                         .whereIn("id", pIds)
-                        .update({ status: "PAID" });
+                        .update({ 
+                            status: "PAID",
+                            paid_at: new Date().toISOString()
+                        });
                 }
             });
 
