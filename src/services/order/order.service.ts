@@ -157,7 +157,31 @@ const orderService = {
                 HARI_TERLAMBAT: daysDueDate + 30
             };
 
-            const serviceFeesForm = serviceFees.length > 0
+
+            const taxFees = [
+                { name: "PKB Pokok", group: 1, groupName: "Biaya Pajak", order: 1, value: parseIDNumber(taxData.PKB_POKOK) },
+                { name: "Pajak Tertunggak (SKP)", group: 1, groupName: "Biaya Pajak", order: 2, value: 0 },
+                { name: "PKB Denda", group: 1, groupName: "Biaya Pajak", order: 3, value: parseIDNumber(taxData.PKB_DENDA) },
+                { name: "Opsen Pokok PKB", group: 1, groupName: "Biaya Pajak", order: 4, value: parseIDNumber(taxData.OPSEN_POKOK) },
+                { name: "Opsen PKB tertunggak", group: 1, groupName: "Biaya Pajak", order: 5, value: 0 },
+                { name: "Opsen PKB Denda", group: 1, groupName: "Biaya Pajak", order: 6, value: parseIDNumber(taxData.OPSEN_DENDA) },
+                { name: "SWDKLLJ", group: 1, groupName: "Biaya Pajak", order: 7, value: parseIDNumber(taxData.SWD_POKOK) },
+                { name: "SWDKLLJ Denda", group: 1, groupName: "Biaya Pajak", order: 8, value: parseIDNumber(taxData.SWD_DENDA) },
+                { name: "Biaya Admin STNK", group: 1, groupName: "Biaya Pajak", order: 9, value: parseIDNumber(taxData.ADM_STNK) },
+                { name: "Biaya Admin TNKB", group: 1, groupName: "Biaya Pajak", order: 10, value: parseIDNumber(taxData.ADM_TNKB) },
+            ];
+
+            const manualFeeEntries = taxFees.map(tf => ({
+                order_detail_id: orderDetailId,
+                fee_name: tf.name,
+                order_fee_name: tf.order,
+                order_fee_group: tf.group,
+                fee_group_name: tf.groupName,
+                zero_placeholder: false,
+                value: tf.value
+            })).filter(f => f.value > 0 || f.fee_name.includes("Tertunggak") || f.fee_name.includes("(SKP)"));
+
+            const serviceFeesFormRaw = serviceFees.length > 0
                 ? serviceFees.map((sf: any) => {
                     let calculatedValue = 0;
                     if (sf.type === "FORMULA" && sf.formula) {
@@ -170,20 +194,23 @@ const orderService = {
                         calculatedValue = sf.value || 0;
                     }
 
+                    // Align group naming and ordering for dashboard
                     let feeGroupName = sf.jumpapay_fee_group_name || sf.fee_group_name;
-                    if (sf.order_fee_group === 1) {
-                        feeGroupName = "Biaya Jasa JumpaPay";
-                    } else if (sf.order_fee_group === 2) {
+                    let feeGroupOrder = sf.order_fee_group;
+
+                    if (feeGroupName?.toLowerCase().includes("pajak")) {
                         feeGroupName = "Biaya Pajak";
-                    } else if (sf.order_fee_group === 4) {
+                        feeGroupOrder = 1;
+                    } else if (feeGroupName?.toLowerCase().includes("jasa leap") || feeGroupName?.toLowerCase().includes("jasa jumpapay")) {
                         feeGroupName = "Biaya Jasa JumpaPay";
+                        feeGroupOrder = 2;
                     }
 
                     return {
                         order_detail_id: orderDetailId,
                         fee_name: sf.name,
                         order_fee_name: sf.order_fee_name,
-                        order_fee_group: sf.order_fee_group,
+                        order_fee_group: feeGroupOrder,
                         fee_group_name: feeGroupName,
                         zero_placeholder: sf.zero_placeholder,
                         value: Number(calculatedValue)
@@ -191,6 +218,8 @@ const orderService = {
                 })
                 .filter((f: any) => f.fee_name !== "JumpaPay Fee")
                 : [];
+
+            const serviceFeesForm = [...manualFeeEntries, ...serviceFeesFormRaw];
 
 
             const plateParts = extractPlate(data.plateNumber);
