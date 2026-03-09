@@ -205,9 +205,14 @@ const orderService = {
                         feeGroupOrder = 2;
                     }
 
+                    let finalFeeName = sf.name;
+                    if (finalFeeName === "JumpaPay Fee") {
+                        finalFeeName = "Biaya Admin";
+                    }
+
                     return {
                         order_detail_id: orderDetailId,
-                        fee_name: sf.name,
+                        fee_name: finalFeeName,
                         order_fee_name: sf.order_fee_name,
                         order_fee_group: feeGroupOrder,
                         fee_group_name: feeGroupName,
@@ -215,8 +220,20 @@ const orderService = {
                         value: Number(calculatedValue)
                     };
                 })
-                .filter((f: any) => f.fee_name !== "JumpaPay Fee")
                 : [];
+
+            const hasOngkir = serviceFeesFormRaw.some((f: any) => f.fee_name.toLowerCase().includes("ongkir") || f.fee_name.toLowerCase().includes("pickup"));
+            if (!hasOngkir) {
+                serviceFeesFormRaw.push({
+                    order_detail_id: orderDetailId,
+                    fee_name: "Ongkir",
+                    order_fee_name: 99,
+                    order_fee_group: 2,
+                    fee_group_name: "Biaya Jasa JumpaPay",
+                    zero_placeholder: null,
+                    value: 0
+                });
+            }
 
             const serviceFeesForm = [...manualFeeEntries, ...serviceFeesFormRaw];
 
