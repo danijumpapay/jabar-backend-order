@@ -223,7 +223,7 @@ const orderService = {
             if (existingVehicle) {
                 vehicleId = existingVehicle.id;
             } else {
-                vehicleId = generateId(vehicleTypeName);
+                vehicleId = generateId(vehicleTypeName ?? "Vehicle");
                 await customer.Vehicles.query(trx).insert({
                     id: vehicleId,
                     user_id: userId,
@@ -609,23 +609,43 @@ const orderService = {
             cancelReason = "Pesanan dibatalkan otomatis karena pembayaran tidak diterima dalam batas waktu yang ditentukan. Silakan buat pesanan baru jika ingin melanjutkan.";
         }
 
-        let vehicleType = "-";
-        let formDataRecord: any = null;
-        try {
-            formDataRecord = await transaction.OrderFormDatas.query()
+        const orderId = order.orderId;
+
+        const [orderDetailFees, formDataRecord, docs, orderAddress] = await Promise.all([
+            transaction.OrderDetailFees.query()
                 .where("order_detail_id", order.orderDetailId)
-                .first() as any;
-            
-            if (formDataRecord) {
-                const fd = formDataRecord.form_data || {};
-                const swd = Number(fd.swd_pokok || fd.swdPokok || 0);
-                vehicleType = getVehicleType(swd) || fd.jenis_kendaraan || fd.vehicleType || (fd.vehicle && fd.vehicle.vehicleType) || fd.service_name || "-";
+                .orderBy("order_fee_group", "asc")
+                .orderBy("order_fee_name", "asc"),
+            transaction.OrderFormDatas.query()
+                .where("order_detail_id", order.orderDetailId)
+                .first(),
+            transaction.OrderDetailDocuments.query()
+                .where("order_detail_id", order.orderDetailId),
+            transaction.OrderAddresses.query()
+                .where("order_id", orderId)
+                .first()
+        ]) as [any[], any, any[], any];
+
+        let vehicleType = "-";
+        try {
+            if (formDataRecord || (orderDetailFees && orderDetailFees.length > 0)) {
+                const fd = formDataRecord?.form_data || {};
+                const swdFee = orderDetailFees.find(f => f.fee_name === "SWDKLLJ Pokok" || f.fee_name === "SWDKLLJ");
+                const swdFromFees = swdFee ? parseIDNumber(swdFee.value) : 0;
+                const derivedFromFees = getVehicleType(swdFromFees);
+                const swdFromForm = parseIDNumber(fd.swd_pokok || fd.swdPokok);
+                const derivedFromForm = getVehicleType(swdFromForm);
+
+                vehicleType = derivedFromFees || fd.jenis_kendaraan || fd.jenisKendaraan || fd.vehicleType || 
+                            derivedFromForm || fd.service_name || "-";
             }
         } catch (err) {
-            logger.error({ err, orderId: order.orderId }, "Error fetching vehicle type for order detail");
+            logger.error({ err, orderId: order.orderId }, "Error determining vehicle type");
         }
 
-        const orderId = order.orderId;
+        const fd = formDataRecord?.form_data || {};
+        const pkbTerakhir = fd.pkb_tertagih || fd.pkbTertagih || fd.pkb_pokok || fd.pkbPokok || "0";
+        const masaBerlakuPajak = fd.masa_berlaku_pajak || fd.masaBerlakuPajak || "-";
         let payments = await transaction.Payments.query()
             .join("transaction.payment_items", "payments.id", "transaction.payment_items.payment_id")
             .where("transaction.payment_items.order_id", orderId)
@@ -654,22 +674,6 @@ const orderService = {
             paymentMethodName = "Simulasi Pembayaran";
         }
 
-        const orderDetailFees = await transaction.OrderDetailFees.query()
-            .where("order_detail_id", order.orderDetailId)
-            .orderBy("order_fee_group", "asc")
-            .orderBy("order_fee_name", "asc") as any[];
-
-        const formData = await transaction.OrderFormDatas.query()
-            .where("order_detail_id", order.orderDetailId)
-            .first() as any;
-
-        const docs = await transaction.OrderDetailDocuments.query()
-            .where("order_detail_id", order.orderDetailId) as any[];
-
-        const orderAddress = await transaction.OrderAddresses.query()
-            .where("order_id", orderId)
-            .first() as any;
-
         const standardTaxLabels = [
             "PKB Pokok", "PKB Denda", "SWDKLLJ Pokok", "SWDKLLJ Denda",
             "PNB STNK", "PNB TNKB", "OPSEN PKB Pokok", "OPSEN PKB Denda"
@@ -697,9 +701,6 @@ const orderService = {
             .map(f => ({ label: f.fee_name, value: formatCurrency(f.value) }));
         
         const subTotalBiayaJasa = formatCurrency(biayaJasa.reduce((acc, curr) => acc + parseIDNumber(curr.value), 0));
-
-        const pkbTerakhir = formData?.form_data?.pkb_tertagih || "0";
-        const masaBerlakuPajak = formData?.form_data?.masa_berlaku_pajak || "-";
 
         return {
             id: order.orderId,
@@ -749,7 +750,7 @@ const orderService = {
                 perpanjangan_pajak: {
                     jenis_kendaraan: vehicleType,
                     nomor_plat: order.plateNumber || "-",
-                    pkb_terakhir: formatCurrency(Number(pkbTerakhir || 0)), 
+                    pkb_terakhir: formatCurrency(parseIDNumber(pkbTerakhir)), 
                     masa_berlaku_pkb: masaBerlakuPajak,
                     total_harga: formatCurrency(Number(order.price)),
                     biaya_jasa: subTotalBiayaJasa,
@@ -757,10 +758,7 @@ const orderService = {
                 form_data: formDataRecord ? {
                     id: formDataRecord.id,
                     form_token: formDataRecord.form_token,
-                    form_data: {
-                        ...formDataRecord.form_data,
-                        jenis_kendaraan: vehicleType
-                    }
+                    form_data: formDataRecord.form_data
                 } : null,
                 dokumen_order: docs.map(d => ({
                     label: d.type || "Dokumen",

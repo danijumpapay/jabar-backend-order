@@ -134,19 +134,21 @@ export const getVehicleTypeId = (swdValue: number): number => {
         return 2;
     } else if (swdValue === 143000) {
         return 1;
-    } else {
+    } else if (swdValue > 0) {
         return 3;
     }
+    return 0;
 };
 
-export const getVehicleType = (swdValue: number): string => {
+export const getVehicleType = (swdValue: number): string | null => {
     if (swdValue === 35000 || swdValue === 83000) {
         return "MOTOR";
     } else if (swdValue === 143000) {
         return "MOBIL";
-    } else {
+    } else if (swdValue > 0) {
         return "TRUK";
     }
+    return null;
 };
 
 export const extractYMD_HI = (dateInput: Date | string): string => {
