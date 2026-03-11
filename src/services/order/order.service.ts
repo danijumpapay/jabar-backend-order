@@ -160,15 +160,14 @@ const orderService = {
 
             const taxFees = [
                 { name: "PKB Pokok", group: 1, groupName: "Biaya Pajak", order: 1, value: parseIDNumber(taxData.PKB_POKOK) },
-                { name: "Pajak Tertunggak (SKP)", group: 1, groupName: "Biaya Pajak", order: 2, value: 0 },
-                { name: "PKB Denda", group: 1, groupName: "Biaya Pajak", order: 3, value: parseIDNumber(taxData.PKB_DENDA) },
-                { name: "Opsen Pokok PKB", group: 1, groupName: "Biaya Pajak", order: 4, value: parseIDNumber(taxData.OPSEN_POKOK) },
-                { name: "Opsen PKB tertunggak", group: 1, groupName: "Biaya Pajak", order: 5, value: 0 },
-                { name: "Opsen PKB Denda", group: 1, groupName: "Biaya Pajak", order: 6, value: parseIDNumber(taxData.OPSEN_DENDA) },
-                { name: "SWDKLLJ", group: 1, groupName: "Biaya Pajak", order: 7, value: parseIDNumber(taxData.SWD_POKOK) },
-                { name: "SWDKLLJ Denda", group: 1, groupName: "Biaya Pajak", order: 8, value: parseIDNumber(taxData.SWD_DENDA) },
-                { name: "Biaya Admin STNK", group: 1, groupName: "Biaya Pajak", order: 9, value: parseIDNumber(taxData.ADM_STNK) },
-                { name: "Biaya Admin TNKB", group: 1, groupName: "Biaya Pajak", order: 10, value: parseIDNumber(taxData.ADM_TNKB) },
+                { name: "PKB Denda", group: 1, groupName: "Biaya Pajak", order: 2, value: parseIDNumber(taxData.PKB_DENDA) },
+                { name: "SWDKLLJ Pokok", group: 1, groupName: "Biaya Pajak", order: 3, value: parseIDNumber(taxData.SWD_POKOK) },
+                { name: "SWDKLLJ Denda", group: 1, groupName: "Biaya Pajak", order: 4, value: parseIDNumber(taxData.SWD_DENDA) },
+                { name: "PNB STNK", group: 1, groupName: "Biaya Pajak", order: 5, value: parseIDNumber(taxData.ADM_STNK) },
+                { name: "PNB TNKB", group: 1, groupName: "Biaya Pajak", order: 6, value: parseIDNumber(taxData.ADM_TNKB) },
+                { name: "OPSEN PKB Pokok", group: 1, groupName: "Biaya Pajak", order: 7, value: parseIDNumber(taxData.OPSEN_POKOK) },
+                { name: "OPSEN PKB Denda", group: 1, groupName: "Biaya Pajak", order: 8, value: parseIDNumber(taxData.OPSEN_DENDA) },
+                { name: "Pajak Tertunggak (SKP)", group: 1, groupName: "Biaya Pajak", order: 9, value: 0 },
             ];
 
             const manualFeeEntries = taxFees.map(tf => ({
@@ -179,7 +178,7 @@ const orderService = {
                 fee_group_name: tf.groupName,
                 zero_placeholder: null,
                 value: tf.value
-            })).filter(f => f.value > 0 || f.fee_name.includes("Tertunggak") || f.fee_name.includes("(SKP)"));
+            }));
 
             const serviceFeesFormRaw = [];
 
@@ -619,15 +618,8 @@ const orderService = {
             
             if (formDataRecord) {
                 const fd = formDataRecord.form_data || {};
-                const swd = Number(fd.swd_pokok || 0);
-                
-                if (swd === 35000) {
-                    vehicleType = "MOTOR";
-                } else if (swd === 143000) {
-                    vehicleType = "MOBIL";
-                } else {
-                    vehicleType = fd.jenis_kendaraan || fd.vehicleType || (fd.vehicle && fd.vehicle.vehicleType) || fd.service_name || "-";
-                }
+                const swd = Number(fd.swd_pokok || fd.swdPokok || 0);
+                vehicleType = getVehicleType(swd) || fd.jenis_kendaraan || fd.vehicleType || (fd.vehicle && fd.vehicle.vehicleType) || fd.service_name || "-";
             }
         } catch (err) {
             logger.error({ err, orderId: order.orderId }, "Error fetching vehicle type for order detail");
@@ -692,11 +684,11 @@ const orderService = {
 
         return {
             id: order.orderId,
+            orderId: order.orderId,
             tanggal: formatDate(order.createdAt),
-            nama: order.customerName || "-",
             name: order.customerName || "-",
             layanan: serviceName,
-            no_hp: order.phoneNumber || "-",
+            phoneNumber: order.phoneNumber || "-",
             kota: orderAddress?.city_name || "-",
             status_pembayaran: order.paidAt ? "Sudah Bayar" : "Belum Bayar",
             platform: "WEB - JABAR",
@@ -706,6 +698,8 @@ const orderService = {
             plateNumber: order.plateNumber || "-",
             vehicleType: vehicleType,
             totalAmount: formatCurrency(Number(order.price)),
+            finalTotal: Number(order.price),
+            price: Number(order.price),
             paymentMethodName: paymentMethodName,
             orderDate: formatDate(order.createdAt),
             status: statusTitle,
