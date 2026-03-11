@@ -579,6 +579,13 @@ const orderService = {
         const order = await this.getOrderByBookingId(bookingId);
         if (!order) return null;
 
+        const correctDetail = await (transaction.OrderDetails as any).query()
+            .where("order_id", order.orderId)
+            .first();
+        if (correctDetail) {
+            order.orderDetailId = correctDetail.id;
+        }
+
         const serviceName = await this.getServiceName(order.serviceId);
 
         let currentStatusId = order.orderStatusId;
@@ -887,9 +894,17 @@ const orderService = {
             logger.info({ orderId, bookingId }, "Payment simulation successful");
 
             this.getOrderDetail(bookingId).then((orderDetail) => {
-                if (orderDetail && orderDetail.email) {
-                    emailService.sendOrderConfirmation(orderDetail.email, orderDetail.name, orderDetail)
-                        .catch(err => logger.error({ err, orderId }, "Error sending payment confirmation email"));
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                const emailToSend = orderDetail?.email;
+                logger.info({ orderId, bookingId, emailToSend }, "Attempting to send LUNAS email");
+
+                if (orderDetail && emailToSend && emailRegex.test(emailToSend)) {
+                    logger.info({ to: emailToSend }, "Sending sendOrderConfirmation...");
+                    emailService.sendOrderConfirmation(emailToSend, orderDetail.name, orderDetail)
+                        .then(() => logger.info({ to: emailToSend }, "LUNAS email sent successfully"))
+                        .catch(err => logger.error({ err, orderId, to: emailToSend }, "Error sending LUNAS email"));
+                } else {
+                    logger.warn({ orderId, emailToSend }, "Skipping email: no valid email on order");
                 }
             }).catch(err => logger.error({ err, orderId }, "Error fetching order detail for notification"));
 

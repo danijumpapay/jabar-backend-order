@@ -40,25 +40,21 @@ class EmailService {
     }
 
     async sendOrderConfirmation(to: string, name: string, orderDetails: any, subject: string = "Konfirmasi Pembayaran Kang Pajak") {
-        try {
-            const templatePath = path.join(__dirname, "templates", "order-confirmation.html");
-            let html = fs.readFileSync(templatePath, "utf-8");
+        const templatePath = path.join(__dirname, "templates", "order-confirmation.html");
+        let html = fs.readFileSync(templatePath, "utf-8");
 
-            html = html.replace(/{{NAME}}/g, name);
-            html = html.replace(/{{ORDER_ID}}/g, orderDetails.bookingId || "-");
-            html = html.replace(/{{SERVICE_NAME}}/g, orderDetails.serviceName || "-");
-            html = html.replace(/{{PLATE_NUMBER}}/g, orderDetails.plateNumber || "-");
-            html = html.replace(/{{VEHICLE_TYPE}}/g, orderDetails.vehicleType || "-");
-            html = html.replace(/{{TOTAL_AMOUNT}}/g, orderDetails.totalAmount || "-");
-            html = html.replace(/{{PAYMENT_METHOD}}/g, orderDetails.paymentMethodName || "-");
-            html = html.replace(/{{TRANSACTION_DATE}}/g, orderDetails.orderDate || "-");
-            html = html.replace(/{{STATUS}}/g, orderDetails.status || "-");
-            html = html.replace(/{{YEAR}}/g, new Date().getFullYear().toString());
+        html = html.replace(/{{NAME}}/g, name);
+        html = html.replace(/{{ORDER_ID}}/g, orderDetails.bookingId || "-");
+        html = html.replace(/{{SERVICE_NAME}}/g, orderDetails.serviceName || "-");
+        html = html.replace(/{{PLATE_NUMBER}}/g, orderDetails.plateNumber || "-");
+        html = html.replace(/{{VEHICLE_TYPE}}/g, orderDetails.vehicleType || "-");
+        html = html.replace(/{{TOTAL_AMOUNT}}/g, orderDetails.totalAmount || "-");
+        html = html.replace(/{{PAYMENT_METHOD}}/g, orderDetails.paymentMethodName || "-");
+        html = html.replace(/{{TRANSACTION_DATE}}/g, orderDetails.orderDate || "-");
+        html = html.replace(/{{STATUS}}/g, orderDetails.status || "-");
+        html = html.replace(/{{YEAR}}/g, new Date().getFullYear().toString());
 
-            await this.sendEmail(to, subject, html);
-        } catch (error) {
-            logger.error({ error }, "Error sending order confirmation email");
-        }
+        await this.sendEmail(to, subject, html);
     }
 
     async sendOrderCreated(to: string, name: string, orderDetails: any, paymentLink: string, subject: string = "Menunggu Pembayaran Kang Pajak") {
