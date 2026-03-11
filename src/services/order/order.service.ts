@@ -1,4 +1,4 @@
-import { transaction, service, user, customer, common, company } from "@jumpapay/jumpapay-models";
+import { transaction, service, user, customer, common } from "@jumpapay/jumpapay-models";
 import { v4 as uuidv4 } from "uuid";
 import { logger } from "@config/logger";
 import { transaction as ObjectionTransaction } from "objection";
@@ -490,7 +490,7 @@ const orderService = {
                 if (orderDetail && orderDetail.email) {
                     let paymentLink = `https://order.kangpajak.com/tracking?id=${bookingId}`;
                     if (paymentDetails?.link_url) {
-                         paymentLink = paymentDetails.link_url;
+                        paymentLink = paymentDetails.link_url;
                     } 
                     
                     emailService.sendOrderCreated(orderDetail.email, orderDetail.name, orderDetail, paymentLink)
@@ -667,14 +667,30 @@ const orderService = {
             .where("order_id", orderId)
             .first() as any;
 
-        const biayaPajak = orderDetailFees
-            .filter(f => f.order_fee_group === 1)
-            .map(f => ({ label: f.fee_name, value: formatCurrency(f.value) }));
+        const standardTaxLabels = [
+            "PKB Pokok", "PKB Denda", "SWDKLLJ Pokok", "SWDKLLJ Denda",
+            "PNB STNK", "PNB TNKB", "OPSEN PKB Pokok", "OPSEN PKB Denda"
+        ];
+
+        const rawTaxFees = orderDetailFees.filter(f => f.order_fee_group === 1);
+        const biayaPajak = standardTaxLabels.map(label => {
+            const match = rawTaxFees.find(f => {
+                const name = f.fee_name;
+                if (name === label) return true;
+                if (label === "SWDKLLJ Pokok" && name === "SWDKLLJ") return true;
+                if (label === "OPSEN PKB Pokok" && name === "Opsen Pokok PKB") return true;
+                return false;
+            });
+            return {
+                label,
+                value: formatCurrency(match ? match.value : 0)
+            };
+        });
         
         const subTotalBiayaPajak = formatCurrency(biayaPajak.reduce((acc, curr) => acc + parseIDNumber(curr.value), 0));
 
         const biayaJasa = orderDetailFees
-            .filter(f => f.order_fee_group >= 2 && f.order_fee_group < 100)
+            .filter(f => f.order_fee_group >= 2 && f.order_fee_group < 100 && f.fee_name !== "Pajak Metode Pembayaran")
             .map(f => ({ label: f.fee_name, value: formatCurrency(f.value) }));
         
         const subTotalBiayaJasa = formatCurrency(biayaJasa.reduce((acc, curr) => acc + parseIDNumber(curr.value), 0));
