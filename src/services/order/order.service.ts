@@ -632,9 +632,12 @@ const orderService = {
             .select("payments.*") as any[];
         
         if (order.paidAt && payments.length === 0) {
+            let method = order.paymentMethodName && order.paymentMethodName !== "-" ? order.paymentMethodName : "Simulasi Pembayaran";
+            if (method !== "Simulasi Pembayaran") method = `${method} - Simulasi`;
+
             payments = [{
                 id: "simulated-" + orderId,
-                payment_method_name: order.paymentMethodName || "Simulasi Pembayaran",
+                payment_method_name: method,
                 payment_method_type: "MANUAL",
                 status: "PAID",
                 paid_at: order.paidAt,
@@ -644,8 +647,8 @@ const orderService = {
         }
         
         let paymentMethodName = order.paymentMethodName || "-";
-        if (paymentMethodName === "-" && payments.length > 0) {
-            paymentMethodName = payments[0].payment_method_name || "-";
+        if (payments.length > 0) {
+            paymentMethodName = payments[0].payment_method_name || payments[0].paymentMethodName || "-";
         }
         if (paymentMethodName === "-" && order.paidAt) {
             paymentMethodName = "Simulasi Pembayaran";
@@ -754,7 +757,10 @@ const orderService = {
                 form_data: formDataRecord ? {
                     id: formDataRecord.id,
                     form_token: formDataRecord.form_token,
-                    form_data: formDataRecord.form_data
+                    form_data: {
+                        ...formDataRecord.form_data,
+                        jenis_kendaraan: vehicleType
+                    }
                 } : null,
                 dokumen_order: docs.map(d => ({
                     label: d.type || "Dokumen",
